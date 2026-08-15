@@ -17,7 +17,8 @@
       "JS tiles hide bids; scrape listing pages for var initialBids. /listings/refresh is login-walled.",
       "Do not skip /led / on OLED hunts — it matches the letters inside OLED.",
       "Per-query false-positive regexes must not run on posted_desc/category crawls.",
-      "PC parts: gpu matches Songmics patio umbrellas (GPU09). cooler matches ice chests. processor matches food processors. psu matches jumpsuits. kingston matches brass bathroom trim. lian matches Alliance alcohol pads unless quoted as lian li. Prefer model/brand: thermalright, 4000d, tomahawk, frozen prism, uni fan, pa401."
+      "PC parts: gpu matches Songmics patio umbrellas (GPU09). cooler matches ice chests. processor matches food processors. psu matches jumpsuits. kingston matches brass bathroom trim. lian matches Alliance alcohol pads unless quoted as lian li. Prefer model/brand: thermalright, 4000d, tomahawk, frozen prism, uni fan, pa401.",
+      "Peripherals: stream deck matches kitchen faucets. yeti matches Rambler mugs. powera matches Powerade. webcam matches sewer cameras. headset/controller as lone words match camping and pickleball. Search logitech/razer/keychron/k70/g502."
     ]
   },
   "categories": {
@@ -96,8 +97,20 @@
       "skip_title_re": "brass|tulare|tub|bathroom|towel"
     },
     {
-      "query": "ssd",
-      "skip_title_re": "laptop|chromebook|tablet|backpack"
+      "query": "yeti",
+      "skip_title_re": "rambler|tumbler|mug|bottle|cooler"
+    },
+    {
+      "query": "stream deck",
+      "skip_title_re": "faucet|kitchen|deck mount"
+    },
+    {
+      "query": "powera",
+      "skip_title_re": "powerade"
+    },
+    {
+      "query": "webcam",
+      "skip_title_re": "sewer|drain|inspection|trail camera"
     }
   ],
   "junk_title_re": "enventor mini|deko pro|dekopro|generic mini chainsaw|peektook|devenbo|hooseen|seesii|milbis|zegjaw|maxlander|adedad|tlysxpro salt and pepper",

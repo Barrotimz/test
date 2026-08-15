@@ -11,7 +11,7 @@ Huronia (Barrie, ON). Pickup Tue–Sat 9am–5pm after Sunday close. Listings ad
 
 1. Search **High-Value first (1090)**, then **Overstock (1089)**. Never one auction alone when they say "any X".
 2. Use `?find=` — **not** `q=` or `search=` (those do not filter).
-3. Prefer **model numbers** over brand words. Title-only index. For PC parts do not search `gpu` / `cooler` / `processor` / `psu` alone.
+3. Prefer **model numbers** over brand words. Title-only index. For PC parts do not search `gpu` / `cooler` / `processor` / `psu` alone. For peripherals do not search `yeti` / `stream deck` / `webcam` / `headset` alone.
 4. Quote retail CAD, current bid, suggested max, condition notes.
 5. One-lot e-transfer all-in ≈ **bid × 1.243 + $1.13**. Fees: 10% premium, $1 handling/item after premium, 13% HST. Card adds 2% on pre-tax then HST.
 6. After a hunt, append anything newly learned to `kotn_lessons.json` (false positives, broken params, category mistakes).
