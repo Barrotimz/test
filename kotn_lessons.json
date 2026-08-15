@@ -21,7 +21,8 @@
       "Peripherals: stream deck matches kitchen faucets. yeti matches Rambler mugs. powera matches Powerade. webcam matches sewer cameras. headset/controller as lone words match camping and pickleball. Search logitech/razer/keychron/k70/g502.",
       "Monitors: find=monitor on Overstock is BP cuffs and smartwatches. This week's OS has zero gaming monitors. Use ultragear/odyssey/240hz/oled on HV.",
       "Saturday tech hunts: crawl electronics category 4 posted_desc AND appliances category 20. Dreame/Bosch/Roomba/Tineco robot and stick vacs land in 20, not 4.",
-      "Samsung M5/M50 (LS32FM501 etc) is a 60Hz FHD smart monitor with TV apps, not a gaming panel. find=samsung also hits fridge door bins."
+      "Samsung M5/M50 (LS32FM501 etc) is a 60Hz FHD smart monitor with TV apps, not a gaming panel. find=samsung also hits fridge door bins.",
+      "PC parts extra traps: frozen matches ice cream makers and Disney Frozen diapers. ram stick matches ceramic cookware. pc case matches luggage. 5070/5080/4090 match Hoover, massagers, and Seville fans. Search frozen prism / mid tower / hynix instead."
     ]
   },
   "categories": {
@@ -114,6 +115,30 @@
     {
       "query": "monitor",
       "skip_title_re": "blood pressure|glucose|radon|air quality|fitness tracker|smart watch|baby|stepper|treadmill|in.?ear monitor"
+    },
+    {
+      "query": "frozen",
+      "skip_title_re": "ice cream|slushi|creami|drink maker|goodnites|pullups|disney frozen|heat tape|pipe"
+    },
+    {
+      "query": "ram stick",
+      "skip_title_re": "ceramic|non-?stick|skillet|cookware|rice cooker|saute|frying"
+    },
+    {
+      "query": "pc case",
+      "skip_title_re": "suitcase|luggage|comforter|pillow case|gun cleaning|ride on"
+    },
+    {
+      "query": "5070",
+      "skip_title_re": "hoover|powerdash|fh507"
+    },
+    {
+      "query": "5080",
+      "skip_title_re": "massager|hw508|roman chair"
+    },
+    {
+      "query": "4090",
+      "skip_title_re": "seville|tower fan|1704090"
     }
   ],
   "junk_title_re": "enventor mini|deko pro|dekopro|generic mini chainsaw|peektook|devenbo|hooseen|seesii|milbis|zegjaw|maxlander|adedad|tlysxpro salt and pepper",
