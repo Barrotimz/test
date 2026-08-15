@@ -112,7 +112,7 @@
     {
       "query": "monitor",
       "skip_title_re": "blood pressure|glucose|radon|air quality|fitness tracker|smart watch|baby|stepper|treadmill|in.?ear monitor"
-    },
+    }
   ],
   "junk_title_re": "enventor mini|deko pro|dekopro|generic mini chainsaw|peektook|devenbo|hooseen|seesii|milbis|zegjaw|maxlander|adedad|tlysxpro salt and pepper",
   "user": {
