@@ -16,7 +16,8 @@
       "Index is title-only (plus model in the title). Descriptions and SKUs are not searchable.",
       "JS tiles hide bids; scrape listing pages for var initialBids. /listings/refresh is login-walled.",
       "Do not skip /led / on OLED hunts — it matches the letters inside OLED.",
-      "Per-query false-positive regexes must not run on posted_desc/category crawls."
+      "Per-query false-positive regexes must not run on posted_desc/category crawls.",
+      "PC parts: gpu matches Songmics patio umbrellas (GPU09). cooler matches ice chests. processor matches food processors. psu matches jumpsuits. kingston matches brass bathroom trim. lian matches Alliance alcohol pads unless quoted as lian li. Prefer model/brand: thermalright, 4000d, tomahawk, frozen prism, uni fan, pa401."
     ]
   },
   "categories": {
@@ -79,8 +80,24 @@
       "skip_title_re": "compatible with makita|fits makita"
     },
     {
-      "query": "hammer",
-      "skip_title_re": "enventor|mini corded"
+      "query": "gpu",
+      "skip_title_re": "umbrella|gpu09|songmics"
+    },
+    {
+      "query": "cooler",
+      "skip_title_re": "ice chest|camping|beverage|evaporative|fridge|freezer|bait|wine cooler|air cooler"
+    },
+    {
+      "query": "processor",
+      "skip_title_re": "food processor|blender|guitar|coffee"
+    },
+    {
+      "query": "kingston",
+      "skip_title_re": "brass|tulare|tub|bathroom|towel"
+    },
+    {
+      "query": "ssd",
+      "skip_title_re": "laptop|chromebook|tablet|backpack"
     }
   ],
   "junk_title_re": "enventor mini|deko pro|dekopro|generic mini chainsaw|peektook|devenbo|hooseen|seesii|milbis|zegjaw|maxlander|adedad|tlysxpro salt and pepper",
