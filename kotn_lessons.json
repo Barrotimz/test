@@ -1,0 +1,92 @@
+{
+  "updated": "2026-08-15",
+  "auctions": {
+    "hv": 1090,
+    "os": 1089,
+    "pallet": 1091
+  },
+  "priority": "hv",
+  "search": {
+    "param": "find",
+    "broken_params": ["q", "search"],
+    "notes": [
+      "The search box sets find= then redirects to /auctions/all and strips category and page.",
+      "Stay on one auction by editing the URL: /auctions/1090?find=TERM and /auctions/1089?find=TERM.",
+      "Two words are AND. Quotes return zero results. SKUs are not indexed.",
+      "Index is title-only (plus model in the title). Descriptions and SKUs are not searchable.",
+      "JS tiles hide bids; scrape listing pages for var initialBids. /listings/refresh is login-walled.",
+      "Do not skip /led / on OLED hunts — it matches the letters inside OLED.",
+      "Per-query false-positive regexes must not run on posted_desc/category crawls."
+    ]
+  },
+  "categories": {
+    "1": "Adult Apparel & Shoes",
+    "2": "Automotive",
+    "3": "Collectibles, Hobbies & Games",
+    "4": "Electronics, Video Games & Acc.",
+    "5": "Wellness, Beauty & Grooming",
+    "6": "Home & Garden",
+    "7": "Home Renovation",
+    "8": "Kids, Babies & Toys",
+    "9": "Books, Music & Movies",
+    "10": "Office/Store Items, Arts & Crafts",
+    "11": "Pets",
+    "12": "Sports & Fitness",
+    "13": "Tools & Industrial",
+    "15": "Adult 18+",
+    "16": "Holiday & Events",
+    "17": "Jewellery, Watches & Accessories",
+    "18": "Outdoors & Travel",
+    "19": "Food & Groceries",
+    "20": "Appliances & Maintenance",
+    "21": "Lifestyle & Recreational"
+  },
+  "conditions": [
+    "brand-new",
+    "appears-new",
+    "refurbished",
+    "minor-issues",
+    "handled",
+    "as-is"
+  ],
+  "order_by": ["posted_desc", "ending_asc"],
+  "fees": {
+    "premium": 0.10,
+    "handling_per_item": 1.0,
+    "hst": 0.13,
+    "card_extra_pre_tax": 0.02,
+    "etransfer_one_lot_approx": "bid * 1.243 + 1.13"
+  },
+  "false_positives": [
+    {
+      "query": "milwaukee",
+      "skip_title_re": "leather|motorcycle|jacket|hoodie|boot|compatible|fits|for milwaukee|adapter|inverter|scrubber|step.?down"
+    },
+    {
+      "query": "oled",
+      "skip_title_re": "oximeter|strobe baton|smart watch|\\bamoled\\b|protective case|screen protector"
+    },
+    {
+      "query": "8.5",
+      "skip_title_re": "gate|toilet|bidet|cushion|pool|cooker|38\\.5|18\\.5|28\\.5|7\\.5"
+    },
+    {
+      "query": "dewalt",
+      "skip_title_re": "compatible for dewalt|fits 20v dewalt|works with 20v dewalt|fitment compatible|diytoolifz|yawv"
+    },
+    {
+      "query": "makita",
+      "skip_title_re": "compatible with makita|fits makita"
+    },
+    {
+      "query": "hammer",
+      "skip_title_re": "enventor|mini corded"
+    }
+  ],
+  "junk_title_re": "enventor mini|deko pro|dekopro|generic mini chainsaw|peektook|devenbo|hooseen|seesii|milbis|zegjaw|maxlander|adedad|tlysxpro salt and pepper",
+  "user": {
+    "lg_oled_27gs93qe_max": 150,
+    "always_both_auctions": true,
+    "prioritize": "high-value"
+  }
+}
