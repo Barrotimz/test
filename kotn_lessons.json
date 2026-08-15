@@ -19,7 +19,9 @@
       "Per-query false-positive regexes must not run on posted_desc/category crawls.",
       "PC parts: gpu matches Songmics patio umbrellas (GPU09). cooler matches ice chests. processor matches food processors. psu matches jumpsuits. kingston matches brass bathroom trim. lian matches Alliance alcohol pads unless quoted as lian li. Prefer model/brand: thermalright, 4000d, tomahawk, frozen prism, uni fan, pa401.",
       "Peripherals: stream deck matches kitchen faucets. yeti matches Rambler mugs. powera matches Powerade. webcam matches sewer cameras. headset/controller as lone words match camping and pickleball. Search logitech/razer/keychron/k70/g502.",
-      "Monitors: find=monitor on Overstock is BP cuffs and smartwatches. This week's OS has zero gaming monitors. Use ultragear/odyssey/240hz/oled on HV."
+      "Monitors: find=monitor on Overstock is BP cuffs and smartwatches. This week's OS has zero gaming monitors. Use ultragear/odyssey/240hz/oled on HV.",
+      "Saturday tech hunts: crawl electronics category 4 posted_desc AND appliances category 20. Dreame/Bosch/Roomba/Tineco robot and stick vacs land in 20, not 4.",
+      "Samsung M5/M50 (LS32FM501 etc) is a 60Hz FHD smart monitor with TV apps, not a gaming panel. find=samsung also hits fridge door bins."
     ]
   },
   "categories": {
