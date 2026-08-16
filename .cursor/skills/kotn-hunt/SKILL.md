@@ -42,6 +42,8 @@ python3 kotn_search.py find dewalt makita oled
 python3 kotn_search.py new --pages 3
 python3 kotn_search.py category 13
 python3 kotn_search.py learn oled 'oximeter|\\bamoled\\b'
+python3 kotn_search.py watch
+python3 kotn_search.py watch-add 4123689 --max 300 --note '27GX790B'
 ```
 
 Never use a skip like `led ` — it matches the letters inside **OLED**.
@@ -61,6 +63,20 @@ HV rows print first. Script applies skip patterns from `kotn_lessons.json`.
 - Overstock 1089: ~1:00–6:30pm Sunday, **$1** increment
 - High-Value 1090: from 6:30pm Sunday, **$5** increment
 - Pallet 1091 exists; skip unless asked
+
+## Watchlist and bidding help
+
+`/listings/watched` is login-walled. Do not take the user's KOTN password, cookies, or session. Do not log in as them or place bids.
+
+Setup: they stay in Brave. They paste listing IDs from the watched page, or keep `kotn_watchlist.json` updated. On that page (logged in), this bookmarklet copies IDs:
+
+```
+javascript:copy([...document.querySelectorAll('.listing-tile[data-id]')].map(el=>el.dataset.id).join('\n'))
+```
+
+Then run `python3 kotn_search.py watch` (public listing pages only). Advise max vs current bid and all-in. They click bid.
+
+When they ask "how am I doing", score the watchlist first.
 
 ## Ranking
 

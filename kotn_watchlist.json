@@ -1,0 +1,49 @@
+{
+  "notes": [
+    "Public listing IDs only. Never put KOTN email/password or cookies here.",
+    "Paste IDs from /listings/watched (logged in on your machine) or say 'add 4123689'.",
+    "I advise max bids. You place them in Brave."
+  ],
+  "lots": [
+    {
+      "id": 4123689,
+      "max": 300,
+      "note": "LG 27GX790B 540/720 OLED. Preferred main."
+    },
+    {
+      "id": 4115828,
+      "max": 150,
+      "note": "LG 27GS93QE 240Hz OLED. Remote missing."
+    },
+    {
+      "id": 4124249,
+      "max": 250,
+      "note": "AOC Q27GAZD QD-OLED 240Hz."
+    },
+    {
+      "id": 4126490,
+      "max": 250,
+      "note": "AOC Q27G4SMN Mini LED 300Hz. Side, not instead of 27GX790B."
+    },
+    {
+      "id": 4127166,
+      "max": 650,
+      "note": "CyberPower i5-14400F / RTX 5060. Power-tested. Prefer over 4127189."
+    },
+    {
+      "id": 4127189,
+      "max": 650,
+      "note": "Same CyberPower, not noted as tested. Skip if 4127166 is alive."
+    },
+    {
+      "id": 4116917,
+      "max": 100,
+      "note": "Corsair 4000D Wood RS + 4 fans."
+    },
+    {
+      "id": 4118914,
+      "max": 45,
+      "note": "Thermalright Frozen Prism 360. Overstock."
+    }
+  ]
+}

@@ -252,6 +252,84 @@ def print_table(rows: list[dict]) -> None:
         )
 
 
+WATCHLIST_PATH = ROOT / "kotn_watchlist.json"
+
+
+def load_watchlist() -> dict:
+    if WATCHLIST_PATH.exists():
+        return json.loads(WATCHLIST_PATH.read_text())
+    return {"notes": [], "lots": []}
+
+
+def save_watchlist(data: dict) -> None:
+    WATCHLIST_PATH.write_text(json.dumps(data, indent=2) + "\n")
+
+
+def all_in(bid: float) -> float:
+    return round(bid * 1.243 + 1.13, 2)
+
+
+def hunt_watch(ids: list[int], watch_meta: dict[int, dict]) -> list[dict]:
+    rows = []
+    for listing_id in ids:
+        meta = watch_meta.get(listing_id) or {}
+        try:
+            detail = listing_detail(listing_id)
+        except Exception as exc:
+            print(f"# detail fail {listing_id}: {exc}", file=sys.stderr)
+            continue
+        max_bid = meta.get("max")
+        bid = detail.get("bid") or 0
+        room = None if max_bid is None else max_bid - bid
+        status = "ok"
+        if max_bid is not None:
+            if bid >= max_bid:
+                status = "over_max"
+            elif bid >= max_bid * 0.8:
+                status = "near_max"
+        merged = {
+            **detail,
+            "id": listing_id,
+            "max": max_bid,
+            "room": room,
+            "all_in_bid": all_in(bid) if bid else 0,
+            "all_in_max": all_in(max_bid) if max_bid else None,
+            "status": status,
+            "watch_note": meta.get("note") or "",
+            "query": "watch",
+        }
+        rows.append(merged)
+        time.sleep(0.05)
+        max_s = f"max ${max_bid}" if max_bid is not None else "max -"
+        print(
+            f"{merged['auction']}\t{listing_id}\t${bid:>4}  "
+            f"{(merged.get('bidder') or '-'):12}  {max_s:10}  "
+            f"{status:8}  {merged['title'][:56]}",
+            flush=True,
+        )
+    rows.sort(key=lambda r: (0 if r.get("auction") == "HV" else 1, r.get("id", 0)))
+    return rows
+
+
+def print_watch_table(rows: list[dict]) -> None:
+    if not rows:
+        print("No watch lots.")
+        return
+    print("\n| Auction | ID | Bid | Bidder | Max | Room | All-in@bid | Status | Title |")
+    print("|---|---|---|---|---|---|---|---|---|")
+    for r in rows:
+        title = r.get("title", "").replace("|", "/")[:70]
+        max_bid = r.get("max")
+        room = r.get("room")
+        print(
+            f"| {r.get('auction','')} | [{r['id']}]({r.get('url','')}) | "
+            f"${r.get('bid',0)} | {r.get('bidder') or '-'} | "
+            f"{'$'+str(max_bid) if max_bid is not None else '-'} | "
+            f"{'$'+str(room) if room is not None else '-'} | "
+            f"${r.get('all_in_bid',0)} | {r.get('status','')} | {title} |"
+        )
+
+
 def learn_skip(query: str, pattern: str, lessons: dict) -> None:
     fps = lessons.setdefault("false_positives", [])
     fps.append({"query": query, "skip_title_re": pattern})
@@ -283,9 +361,46 @@ def main() -> int:
     l.add_argument("query")
     l.add_argument("pattern")
 
+    w = sub.add_parser("watch", help="Score public lots from kotn_watchlist.json or IDs")
+    w.add_argument("ids", nargs="*", type=int, help="Optional listing IDs; default is the watchlist file")
+
+    wa = sub.add_parser("watch-add", help="Append a listing ID to kotn_watchlist.json")
+    wa.add_argument("listing_id", type=int)
+    wa.add_argument("--max", type=int, default=None)
+    wa.add_argument("--note", default="")
+
     args = p.parse_args()
     if args.cmd == "learn":
         learn_skip(args.query, args.pattern, lessons)
+        return 0
+    if args.cmd == "watch-add":
+        data = load_watchlist()
+        lots = data.setdefault("lots", [])
+        for lot in lots:
+            if lot.get("id") == args.listing_id:
+                if args.max is not None:
+                    lot["max"] = args.max
+                if args.note:
+                    lot["note"] = args.note
+                save_watchlist(data)
+                print(f"updated watch {args.listing_id} max={lot.get('max')} {lot.get('note','')}")
+                return 0
+        lots.append({"id": args.listing_id, "max": args.max, "note": args.note})
+        save_watchlist(data)
+        print(f"added watch {args.listing_id} max={args.max} {args.note}")
+        return 0
+    if args.cmd == "watch":
+        data = load_watchlist()
+        meta = {int(lot["id"]): lot for lot in data.get("lots") or [] if lot.get("id")}
+        ids = args.ids or [int(lot["id"]) for lot in data.get("lots") or [] if lot.get("id")]
+        if not ids:
+            print("Watchlist empty. Add IDs to kotn_watchlist.json or: kotn_search.py watch-add ID --max 150")
+            return 1
+        kept = hunt_watch(ids, meta)
+        out_path = ROOT / "kotn_last_search.json"
+        out_path.write_text(json.dumps(kept, indent=2) + "\n")
+        print_watch_table(kept)
+        print(f"\nWrote {out_path} ({len(kept)} lots).", file=sys.stderr)
         return 0
 
     if args.cmd == "find":
