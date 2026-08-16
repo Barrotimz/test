@@ -24,7 +24,8 @@
       "Samsung M5/M50 (LS32FM501 etc) is a 60Hz FHD smart monitor with TV apps, not a gaming panel. find=samsung also hits fridge door bins.",
       "PC parts extra traps: frozen matches ice cream makers and Disney Frozen diapers. ram stick matches ceramic cookware. pc case matches luggage. 5070/5080/4090 match Hoover, massagers, and Seville fans. Search frozen prism / mid tower / hynix instead.",
       "/listings/watched is login-walled. Cursor Simple Browser can show it when they are logged in; this agent cannot drive that pane. Score from screenshots or kotn_watchlist.json plus public listing pages. Never store account passwords. Do not boot Computer Use Chrome just to open watched.",
-      "PS5 consoles: find=ps5 and find=playstation on HV then OS. find=ps5 also hits Moukey MPS5 karaoke and charging docks. find=playstation hits PS4 bundles and PSP batteries. This week all consoles were HV; OS had only DualSense/docks."
+      "PS5 consoles: find=ps5 and find=playstation on HV then OS. find=ps5 also hits Moukey MPS5 karaoke and charging docks. find=playstation hits PS4 bundles and PSP batteries. This week all consoles were HV; OS had only DualSense/docks.",
+      "3D printers: find=3d printer / kobra / adventurer / bambu / creality. find=resin is deck boxes and patio chairs. find=filament hits fishing monofilament. find=ender hits truck fender flares. find=3d hits Art3d wall panels. This week: 5 FDM printers all HV, no Bambu/Prusa/Elegoo, OS only PLA and a dial indicator."
     ]
   },
   "categories": {
@@ -149,6 +150,22 @@
     {
       "query": "playstation",
       "skip_title_re": "playstation 4|\\bps4\\b|psp1000|\\bpsp\\b|assassins creed"
+    },
+    {
+      "query": "resin",
+      "skip_title_re": "deck|storage box|adirondack|muskoka|bird bath|bocce|magnet"
+    },
+    {
+      "query": "filament",
+      "skip_title_re": "fishing|monofilament|string light"
+    },
+    {
+      "query": "ender",
+      "skip_title_re": "fender|blender"
+    },
+    {
+      "query": "3d",
+      "skip_title_re": "art3d|slat wall|acoustic panel|resin magnet"
     }
   ],
   "junk_title_re": "enventor mini|deko pro|dekopro|generic mini chainsaw|peektook|devenbo|hooseen|seesii|milbis|zegjaw|maxlander|adedad|tlysxpro salt and pepper",
