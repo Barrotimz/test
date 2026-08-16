@@ -68,7 +68,11 @@ HV rows print first. Script applies skip patterns from `kotn_lessons.json`.
 
 `/listings/watched` is login-walled. Do not take the user's KOTN password, cookies, or session. Do not log in as them or place bids.
 
-Setup: they stay in Brave. They paste listing IDs from the watched page, or keep `kotn_watchlist.json` updated. On that page (logged in), this bookmarklet copies IDs:
+The Cursor Simple Browser pane (the built-in IDE browser) is **their** logged-in session. This agent cannot drive that pane or read its cookies. Screenshots or pasted IDs from that pane are the source of truth for `/listings/watched`.
+
+Do not open a separate Computer Use Chrome for watched — that instance has no login and is slow.
+
+Setup: they stay in Cursor Simple Browser or Brave. They paste listing IDs from the watched page, or keep `kotn_watchlist.json` updated. On that page (logged in), this bookmarklet copies IDs:
 
 ```
 javascript:copy([...document.querySelectorAll('.listing-tile[data-id]')].map(el=>el.dataset.id).join('\n'))
