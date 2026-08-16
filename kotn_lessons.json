@@ -23,7 +23,8 @@
       "Saturday tech hunts: crawl electronics category 4 posted_desc AND appliances category 20. Dreame/Bosch/Roomba/Tineco robot and stick vacs land in 20, not 4.",
       "Samsung M5/M50 (LS32FM501 etc) is a 60Hz FHD smart monitor with TV apps, not a gaming panel. find=samsung also hits fridge door bins.",
       "PC parts extra traps: frozen matches ice cream makers and Disney Frozen diapers. ram stick matches ceramic cookware. pc case matches luggage. 5070/5080/4090 match Hoover, massagers, and Seville fans. Search frozen prism / mid tower / hynix instead.",
-      "/listings/watched is login-walled. Cursor Simple Browser can show it when they are logged in; this agent cannot drive that pane. Score from screenshots or kotn_watchlist.json plus public listing pages. Never store account passwords. Do not boot Computer Use Chrome just to open watched."
+      "/listings/watched is login-walled. Cursor Simple Browser can show it when they are logged in; this agent cannot drive that pane. Score from screenshots or kotn_watchlist.json plus public listing pages. Never store account passwords. Do not boot Computer Use Chrome just to open watched.",
+      "PS5 consoles: find=ps5 and find=playstation on HV then OS. find=ps5 also hits Moukey MPS5 karaoke and charging docks. find=playstation hits PS4 bundles and PSP batteries. This week all consoles were HV; OS had only DualSense/docks."
     ]
   },
   "categories": {
@@ -140,6 +141,14 @@
     {
       "query": "4090",
       "skip_title_re": "seville|tower fan|1704090"
+    },
+    {
+      "query": "ps5",
+      "skip_title_re": "moukey|\\bmps5\\b|karaoke|cooling.?charging station|charging dock|charging station"
+    },
+    {
+      "query": "playstation",
+      "skip_title_re": "playstation 4|\\bps4\\b|psp1000|\\bpsp\\b|assassins creed"
     }
   ],
   "junk_title_re": "enventor mini|deko pro|dekopro|generic mini chainsaw|peektook|devenbo|hooseen|seesii|milbis|zegjaw|maxlander|adedad|tlysxpro salt and pepper",
