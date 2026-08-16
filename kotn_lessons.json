@@ -197,10 +197,11 @@
   "junk_title_re": "enventor mini|deko pro|dekopro|generic mini chainsaw|peektook|devenbo|hooseen|seesii|milbis|zegjaw|maxlander|adedad|tlysxpro salt and pepper",
   "user": {
     "lg_oled_27gs93qe_max": 150,
-    "lg_oled_27gx790b_max": 300,
+    "lg_oled_27gx790b_max": 350,
+    "kotn_username": "fabiogaipo",
     "always_both_auctions": true,
     "prioritize": "high-value",
     "watchlist": "kotn_watchlist.json",
-    "bidding": "Advise only. User places bids in their browser. Never store KOTN password or cookies."
+    "bidding": "Advise only. User places bids in their browser. Never store KOTN password or cookies. Username is public bid data only."
   }
 }
