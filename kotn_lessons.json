@@ -26,7 +26,8 @@
       "/listings/watched is login-walled. Cursor Simple Browser can show it when they are logged in; this agent cannot drive that pane. Score from screenshots or kotn_watchlist.json plus public listing pages. Never store account passwords. Do not boot Computer Use Chrome just to open watched.",
       "PS5 consoles: find=ps5 and find=playstation on HV then OS. find=ps5 also hits Moukey MPS5 karaoke and charging docks. find=playstation hits PS4 bundles and PSP batteries. This week all consoles were HV; OS had only DualSense/docks.",
       "3D printers: find=3d printer / kobra / adventurer / bambu / creality. find=resin is deck boxes and patio chairs. find=filament hits fishing monofilament. find=ender hits truck fender flares. find=3d hits Art3d wall panels. Resin/MSLA hunts: find=elegoo / photon / saturn / mars / formlabs / wash and cure. photon is LED face masks, saturn is Evenflo Saturn Grey car seats, mars is GIMARS litter boxes, sla is Tesla adapters. This sale: 5 FDM printers all HV, zero resin printers, zero wash-and-cure. OS has an ISTOYO epoxy craft mixer, not an MSLA.",
-      "Baby diapers: find=pampers and find=huggies. find=diaper on HV is almost all Diaper Genie pails. Actual packs this week are Overstock (300+), $1 increment. Skip pull-ups/goodnites unless they asked for training pants."
+      "Baby diapers: find=pampers and find=huggies. find=diaper on HV is almost all Diaper Genie pails. Actual packs this week are Overstock (300+), $1 increment. Skip pull-ups/goodnites unless they asked for training pants.",
+      "PC parts Sunday live: no loose modern GPUs, AM5, DDR5 kits, or PSUs. find=arctic is pillows/LEGO/jackets/Ninja Slushi. find=water cooler is drinking coolers. find=aio is Chrysler axles and generic HDD brands. OS Thermalright/Lian Li/iCUE lots vanish from listing JSON after they close."
     ]
   },
   "categories": {
@@ -179,6 +180,18 @@
     {
       "query": "sla",
       "skip_title_re": "tesla|j1772|spigen|frunk"
+    },
+    {
+      "query": "3d",
+      "skip_title_re": "art3d|slat wall|acoustic panel|resin magnet"
+    },
+    {
+      "query": "arctic",
+      "skip_title_re": "pillow|lego|jacket|slushi|luggage|samsonite"
+    },
+    {
+      "query": "water cooler",
+      "skip_title_re": "bottom loading|frigidaire|avalon|ice maker"
     }
   ],
   "junk_title_re": "enventor mini|deko pro|dekopro|generic mini chainsaw|peektook|devenbo|hooseen|seesii|milbis|zegjaw|maxlander|adedad|tlysxpro salt and pepper",
