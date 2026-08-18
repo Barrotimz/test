@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""KOTN hunter: High-Value (1090) first, then Overstock (1089). Uses find=."""
+"""KOTN hunter: High-Value first, then Overstock. Uses find=. Auction IDs change each week."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ import urllib.request
 from pathlib import Path
 
 UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36"
-HV, OS = 1090, 1089
+HV, OS = 1095, 1094  # week of Sun 2026-08-23; pallet 1096
 ROOT = Path(__file__).resolve().parent
 LESSONS_PATH = ROOT / "kotn_lessons.json"
 

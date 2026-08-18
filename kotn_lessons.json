@@ -1,9 +1,9 @@
 {
-  "updated": "2026-08-15",
+  "updated": "2026-08-18",
   "auctions": {
-    "hv": 1090,
-    "os": 1089,
-    "pallet": 1091
+    "hv": 1095,
+    "os": 1094,
+    "pallet": 1096
   },
   "priority": "hv",
   "search": {
@@ -11,7 +11,7 @@
     "broken_params": ["q", "search"],
     "notes": [
       "The search box sets find= then redirects to /auctions/all and strips category and page.",
-      "Stay on one auction by editing the URL: /auctions/1090?find=TERM and /auctions/1089?find=TERM.",
+      "Stay on one auction by editing the URL: /auctions/1095?find=TERM (HV) and /auctions/1094?find=TERM (OS). IDs change each week; read the homepage.",
       "Two words are AND. Quotes return zero results. SKUs are not indexed.",
       "Index is title-only (plus model in the title). Descriptions and SKUs are not searchable.",
       "JS tiles hide bids; scrape listing pages for var initialBids. /listings/refresh is login-walled.",
@@ -27,7 +27,7 @@
       "PS5 consoles: find=ps5 and find=playstation on HV then OS. find=ps5 also hits Moukey MPS5 karaoke and charging docks. find=playstation hits PS4 bundles and PSP batteries. This week all consoles were HV; OS had only DualSense/docks.",
       "3D printers: find=3d printer / kobra / adventurer / bambu / creality. find=resin is deck boxes and patio chairs. find=filament hits fishing monofilament. find=ender hits truck fender flares. find=3d hits Art3d wall panels. Resin/MSLA hunts: find=elegoo / photon / saturn / mars / formlabs / wash and cure. photon is LED face masks, saturn is Evenflo Saturn Grey car seats, mars is GIMARS litter boxes, sla is Tesla adapters. This sale: 5 FDM printers all HV, zero resin printers, zero wash-and-cure. OS has an ISTOYO epoxy craft mixer, not an MSLA.",
       "Baby diapers: find=pampers and find=huggies. find=diaper on HV is almost all Diaper Genie pails. Actual packs this week are Overstock (300+), $1 increment. Skip pull-ups/goodnites unless they asked for training pants.",
-      "PC parts Sunday live: no loose modern GPUs, AM5, DDR5 kits, or PSUs. find=arctic is pillows/LEGO/jackets/Ninja Slushi. find=water cooler is drinking coolers. find=aio is Chrysler axles and generic HDD brands. OS Thermalright/Lian Li/iCUE lots vanish from listing JSON after they close."
+      "Wired in-ears this drop: find=earbuds / wired earbuds. HV has none. OS has Ludos Omnitone USB-C and one Heyday 3.5mm. Most Heyday hits are on-ear or wireless. find=headset is office/gaming over-ears and camping junk."
     ]
   },
   "categories": {
