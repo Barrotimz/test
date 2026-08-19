@@ -6,6 +6,36 @@
   ],
   "lots": [
     {
+      "id": 4131670,
+      "max": 200,
+      "note": "LG 27GX704A-B GX7 240Hz glossy OLED. Joystick OSD. Not 540Hz GX790B. Open/appears new. Street ~$550-$680."
+    },
+    {
+      "id": 4132900,
+      "max": 250,
+      "note": "Samsung Odyssey G95C 49 VA 240Hz LS49CG952. Light use, screen scratches, maybe missing stand hardware. Street ~$1000."
+    },
+    {
+      "id": 4133269,
+      "max": 550,
+      "note": "CyberPower i5-14400F / RTX 5060 / 16GB DDR5 / 1TB. Power-tested. Same spec as last week."
+    },
+    {
+      "id": 4130508,
+      "max": 100,
+      "note": "Acer Nitro XV271U 27 WQHD 180Hz IPS sealed. Street ~$200-$250."
+    },
+    {
+      "id": 4129172,
+      "max": 80,
+      "note": "Razer Core X V2 enclosure only. No GPU/PSU. Skip unless TB5 laptop + spare card."
+    },
+    {
+      "id": 4133466,
+      "max": 25,
+      "note": "Glorious GMMK 2 65% Fox white. Residue. Street ~$80-$160."
+    },
+    {
       "id": 4123689,
       "max": 350,
       "note": "LG 27GX790B 540/720 OLED. Preferred main. User cap $350 keep, thin flip."
