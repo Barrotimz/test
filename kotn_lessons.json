@@ -34,6 +34,7 @@
       "LG 27GX704A-B (GX7) is 27\" QHD 240Hz glossy MLA+ OLED with a bottom joystick OSD. Not the 540/720 27GX790B. OLED Care mentions a remote in the box, but the full OSD is on the joystick — unlike 27GS93QE which locked without the remote.",
       "Samsung LS49CG952ENXZA is Odyssey G95C 49\" Dual QHD 240Hz VA, not OLED. Street often ~$1000 CAD (Best Buy). OLED G9 SKUs are LS49CG932 / LS49CG954 / LS49DG954.",
       "Razer Core X V2 (RC21-02270200) is the Thunderbolt 5 enclosure only. GPU and a standard ATX PSU are sold separately. Needs a TB5 host. Street ~$350–500 CAD empty.",
+      "Gaming mice Thu 20 Aug 2026: no Razer/Logitech G/Superlight/Zowie/Lamzu. find=mouse and find=model o are Mickey Mouse diapers. find=g pro dumps junk. find=g502 hits Samsung Odyssey G5 S27FG502SN. find=viper is Sno Storm Vipernex sleds. find=gaming mouse hits Corsair/Beluga desk mats. Only real gaming mouse this scan is OS Redragon Mirage2 M690-1.",
       "Wed 19 Aug afternoon: still no loose GPU/AM5/DDR5/PSU/case. New HV monitors: ASUS PG27AQWP-W is the 540/720 dual-mode OLED (same class as 27GX790B) but this copy has light lines across the whole screen — skip as a keep. Samsung S27FG810SN is Odyssey G81SF 27\" 4K 240Hz QD-OLED, open/appears new. UGREEN DXP4800 Plus is a diskless 4-bay NAS (Pentium Gold 8505 / 8GB / 10GbE), street ~$555–$860."
     ]
   },
@@ -211,6 +212,26 @@
     {
       "query": "wipe",
       "skip_title_re": "windshield|wiper blade|wiper linkage|wipeable|beam wiper"
+    },
+    {
+      "query": "g502",
+      "skip_title_re": "odyssey|s27fg502|fg502"
+    },
+    {
+      "query": "viper",
+      "skip_title_re": "vipernex|sled|snow"
+    },
+    {
+      "query": "gaming mouse",
+      "skip_title_re": "mouse pad|mousepad|desk mat"
+    },
+    {
+      "query": "mouse",
+      "skip_title_re": "mickey|minnie|huggies|pull-?ups|diaper|plush|funko|creme shop"
+    },
+    {
+      "query": "model o",
+      "skip_title_re": "mickey|minnie|huggies|pull-?ups"
     }
   ],
   "junk_title_re": "enventor mini|deko pro|dekopro|generic mini chainsaw|peektook|devenbo|hooseen|seesii|milbis|zegjaw|maxlander|adedad|tlysxpro salt and pepper",
