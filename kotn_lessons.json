@@ -36,6 +36,7 @@
       "Razer Core X V2 (RC21-02270200) is the Thunderbolt 5 enclosure only. GPU and a standard ATX PSU are sold separately. Needs a TB5 host. Street ~$350–500 CAD empty.",
       "Gaming mice Thu 20 Aug 2026: no Razer/Logitech G/Superlight/Zowie/Lamzu. find=mouse and find=model o are Mickey Mouse diapers. find=g pro dumps junk. find=g502 hits Samsung Odyssey G5 S27FG502SN. find=viper is Sno Storm Vipernex sleds. find=gaming mouse hits Corsair/Beluga desk mats. Only real gaming mouse this scan is OS Redragon Mirage2 M690-1.",
       "Apparel: Adult clothes are category 1. find=north face this week is backpacks only (Borealis, Women's Jester), no TNF jackets. THE NORTH FAN is a knockoff Jester — skip. find=the north hits BPS Northern Flight waders and True North t-shirts. find=supreme is Keurig K-Supreme and Intex air mattresses. No Patagonia/Arc'teryx/Canada Goose/lululemon/Moncler this scan. Carhartt jackets are the expensive clothes.",
+      "Cat litter boxes: find=litter then petsafe / omega paw / iris. find=litter also hits glitter, table runners, chin splitters, headphones with splitter. find=litter robot is zero this week (no Whisker). find=whisker is a milk frother. Pets category 11. Sat 22 Aug freeze: HV has PetSafe ScoopFree Smart/Pro/Plus plus many no-name 90L app boxes. OS has Omega Paw, IRIS, Amazon Basics, stainless twins, and a sealed 3pk ScoopFree trays.",
       "Wed 19 Aug afternoon: still no loose GPU/AM5/DDR5/PSU/case. New HV monitors: ASUS PG27AQWP-W is the 540/720 dual-mode OLED (same class as 27GX790B) but this copy has light lines across the whole screen — skip as a keep. Samsung S27FG810SN is Odyssey G81SF 27\" 4K 240Hz QD-OLED, open/appears new. UGREEN DXP4800 Plus is a diskless 4-bay NAS (Pentium Gold 8505 / 8GB / 10GbE), street ~$555–$860."
     ]
   },
@@ -245,6 +246,10 @@
     {
       "query": "north face",
       "skip_title_re": "north fan"
+    },
+    {
+      "query": "litter",
+      "skip_title_re": "glitter|sequin|chin splitter|spoiler|splitter cable|mpow|hello kitty|otterbox|book cloth"
     }
   ],
   "junk_title_re": "enventor mini|deko pro|dekopro|generic mini chainsaw|peektook|devenbo|hooseen|seesii|milbis|zegjaw|maxlander|adedad|tlysxpro salt and pepper",
