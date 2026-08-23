@@ -1,5 +1,5 @@
 {
-  "updated": "2026-08-19",
+  "updated": "2026-08-23",
   "auctions": {
     "hv": 1095,
     "os": 1094,
@@ -18,7 +18,7 @@
       "Do not skip /led / on OLED hunts — it matches the letters inside OLED.",
       "Per-query false-positive regexes must not run on posted_desc/category crawls.",
       "PC parts: gpu matches Songmics patio umbrellas (GPU09). cooler matches ice chests. processor matches food processors. psu matches jumpsuits. kingston matches brass bathroom trim. lian matches Alliance alcohol pads unless quoted as lian li. Prefer model/brand: thermalright, 4000d, tomahawk, frozen prism, uni fan, pa401.",
-      "Peripherals: stream deck matches kitchen faucets. yeti matches Rambler mugs. powera matches Powerade. webcam matches sewer cameras. headset/controller as lone words match camping and pickleball. Search logitech/razer/keychron/k70/g502.",
+      "Peripherals: stream deck matches kitchen faucets. yeti also matches Rambler mugs — skip rambler/tumbler/mug/bottle when hunting ice chests, but never skip cooler (Hopper/Roadie/Tundra). powera matches Powerade. webcam matches sewer cameras. headset/controller as lone words match camping and pickleball. Search logitech/razer/keychron/k70/g502.",
       "Monitors: find=monitor on Overstock is BP cuffs and smartwatches. This week's OS has zero gaming monitors. Use ultragear/odyssey/240hz/oled on HV.",
       "Saturday tech hunts: crawl electronics category 4 posted_desc AND appliances category 20. Dreame/Bosch/Roomba/Tineco robot and stick vacs land in 20, not 4.",
       "Samsung M5/M50 (LS32FM501 etc) is a 60Hz FHD smart monitor with TV apps, not a gaming panel. find=samsung also hits fridge door bins.",
@@ -37,6 +37,7 @@
       "Gaming mice Thu 20 Aug 2026: no Razer/Logitech G/Superlight/Zowie/Lamzu. find=mouse and find=model o are Mickey Mouse diapers. find=g pro dumps junk. find=g502 hits Samsung Odyssey G5 S27FG502SN. find=viper is Sno Storm Vipernex sleds. find=gaming mouse hits Corsair/Beluga desk mats. Only real gaming mouse this scan is OS Redragon Mirage2 M690-1.",
       "Apparel: Adult clothes are category 1. find=north face this week is backpacks only (Borealis, Women's Jester), no TNF jackets. THE NORTH FAN is a knockoff Jester — skip. find=the north hits BPS Northern Flight waders and True North t-shirts. find=supreme is Keurig K-Supreme and Intex air mattresses. No Patagonia/Arc'teryx/Canada Goose/lululemon/Moncler this scan. Carhartt jackets are the expensive clothes.",
       "Cat litter boxes: find=litter then petsafe / omega paw / iris. find=litter also hits glitter, table runners, chin splitters, headphones with splitter. find=litter robot is zero this week (no Whisker). find=whisker is a milk frother. Pets category 11. Sat 22 Aug freeze: HV has PetSafe ScoopFree Smart/Pro/Plus plus many no-name 90L app boxes. OS has Omega Paw, IRIS, Amazon Basics, stainless twins, and a sealed 3pk ScoopFree trays.",
+      "Expensive ice chests Sun 23 Aug 2026: search hopper / roadie / tundra / yeti / igloo, not cooler alone (the PC-cooler skip hides ice chests). Do not skip yeti titles that contain cooler — that hid Hopper Flip 18, Roadie 24, and Tundra 65. find=rtic matches the letters inside vertical (Keter sheds, filing cabinets, sausage stuffers). find=orca is Happy Nappers. find=canyon is GMC Canyon fog lights. This week HV has two Roadie 24 2.0 Ultramarine Violet, one Hopper Flip 18 navy sealed, and a beat Matco-sticker Tundra 65. Zero RTIC/Orca/Canyon/Pelican ice chests. OS is only cheap Igloo/Coleman lunch bags.",
       "Wed 19 Aug afternoon: still no loose GPU/AM5/DDR5/PSU/case. New HV monitors: ASUS PG27AQWP-W is the 540/720 dual-mode OLED (same class as 27GX790B) but this copy has light lines across the whole screen — skip as a keep. Samsung S27FG810SN is Odyssey G81SF 27\" 4K 240Hz QD-OLED, open/appears new. UGREEN DXP4800 Plus is a diskless 4-bay NAS (Pentium Gold 8505 / 8GB / 10GbE), street ~$555–$860."
     ]
   },
@@ -117,7 +118,11 @@
     },
     {
       "query": "yeti",
-      "skip_title_re": "rambler|tumbler|mug|bottle|cooler"
+      "skip_title_re": "rambler|tumbler|mug|bottle"
+    },
+    {
+      "query": "rtic",
+      "skip_title_re": "vertical|artic|arctic"
     },
     {
       "query": "stream deck",
