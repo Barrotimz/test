@@ -9,7 +9,7 @@ Huronia (Barrie, ON). Pickup Tue–Sat 9am–5pm after Sunday close. Listings ad
 
 ## Always
 
-1. Search **High-Value first (1095 this week)**, then **Overstock (1094)**. Never one auction alone when they say "any X". Confirm IDs on the homepage.
+1. Search **High-Value first (1106 this week)**, then **Overstock (1105)**. Never one auction alone when they say "any X". Confirm IDs on the homepage.
 2. Use `?find=` — **not** `q=` or `search=` (those do not filter).
 3. Prefer **model numbers** over brand words. Title-only index. For PC parts do not search `gpu` / `cooler` / `processor` / `psu` alone. For peripherals do not search `yeti` / `stream deck` / `webcam` / `headset` alone.
 4. Quote retail CAD, current bid, suggested max, condition notes.
@@ -21,11 +21,11 @@ Huronia (Barrie, ON). Pickup Tue–Sat 9am–5pm after Sunday close. Listings ad
 Stay on one auction (the site search box will not — it jumps to `/auctions/all` and strips category):
 
 ```
-https://kotnauction.com/auctions/1095?find=dewalt
-https://kotnauction.com/auctions/1094?find=dewalt
+https://kotnauction.com/auctions/1106?find=dewalt
+https://kotnauction.com/auctions/1105?find=dewalt
 ```
 
-Week of Sunday 23 Aug 2026: **HV 1095**, **OS 1094**, pallet 1096. Confirm IDs on the homepage each week.
+Week of Sunday 6 Sep 2026: **HV 1106**, **OS 1105**, pallet 1107, Halloween 1108. Confirm IDs on the homepage each week.
 
 Add filters back by hand:
 
@@ -62,9 +62,9 @@ HV rows print first. Script applies skip patterns from `kotn_lessons.json`.
 
 ## Auction mechanics
 
-- Overstock 1094: ~1:00–6:30pm Sunday, **$1** increment
-- High-Value 1095: from 6:30pm Sunday, **$5** increment
-- Pallet 1096 exists; skip unless asked
+- Overstock 1105: ~1:00–6:30pm Sunday, **$1** increment
+- High-Value 1106: from 6:30pm Sunday, **$5** increment
+- Pallet 1107 exists; skip unless asked. Halloween blowout 1108 is Monday.
 
 ## Watchlist and bidding help
 
