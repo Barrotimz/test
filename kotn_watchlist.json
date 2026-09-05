@@ -1,0 +1,174 @@
+{
+  "notes": [
+    "Public listing IDs only. Never put KOTN email/password or cookies here.",
+    "Paste IDs from /listings/watched (logged in on your machine) or say 'add 4123689'.",
+    "I advise max bids. You place them in Brave."
+  ],
+  "lots": [
+    {
+      "id": 4125190,
+      "max": 90,
+      "note": "PetSafe ScoopFree Crystal Pro PAL00-16806. Open/appears new, power-tested. Street ~$280-$300."
+    },
+    {
+      "id": 4128682,
+      "max": 40,
+      "note": "3pk PetSafe ScoopFree replacement trays sealed. Street ~$85-$100. Pair with Crystal Pro."
+    },
+    {
+      "id": 4134063,
+      "max": 85,
+      "note": "Carhartt OJ3826 sherpa duck jacket 2XL tall sealed. Street ~$190-$240. Niche size."
+    },
+    {
+      "id": 4129440,
+      "max": 85,
+      "note": "Carhartt 104050 insulated duck Active Jac medium sealed. Street ~$195-$210."
+    },
+    {
+      "id": 4136884,
+      "max": 50,
+      "note": "TNF Borealis backpack appears new. Street $135. Not clothes."
+    },
+    {
+      "id": 4134417,
+      "max": 400,
+      "note": "Samsung Odyssey G81SF 27 4K 240Hz QD-OLED S27FG810SN. Open/appears new. Street ~$900-$1200."
+    },
+    {
+      "id": 4131670,
+      "max": 200,
+      "note": "LG 27GX704A-B GX7 240Hz glossy OLED. Joystick OSD. Not 540Hz GX790B. Open/appears new. Street ~$550-$680."
+    },
+    {
+      "id": 4134694,
+      "max": 220,
+      "note": "UGREEN DXP4800 Plus 4-bay NAS diskless. Pentium Gold 8505, 8GB, 10GbE. Street ~$555-$860."
+    },
+    {
+      "id": 4134702,
+      "max": 50,
+      "note": "ASUS PG27AQWP-W 540/720 OLED. SAME CLASS as GX790B but light lines across whole screen. Skip as keep."
+    },
+    {
+      "id": 4134412,
+      "max": 70,
+      "note": "AOC Q27G41ZE 27 QHD 240Hz IPS. Screen scratches on top. Street ~$240."
+    },
+    {
+      "id": 4132900,
+      "max": 250,
+      "note": "Samsung Odyssey G95C 49 VA 240Hz LS49CG952. Light use, screen scratches, maybe missing stand hardware. Street ~$1000."
+    },
+    {
+      "id": 4133269,
+      "max": 550,
+      "note": "CyberPower i5-14400F / RTX 5060 / 16GB DDR5 / 1TB. Power-tested. Same spec as last week."
+    },
+    {
+      "id": 4130508,
+      "max": 100,
+      "note": "Acer Nitro XV271U 27 WQHD 180Hz IPS sealed. Street ~$200-$250."
+    },
+    {
+      "id": 4129172,
+      "max": 80,
+      "note": "Razer Core X V2 enclosure only. No GPU/PSU. Skip unless TB5 laptop + spare card."
+    },
+    {
+      "id": 4133466,
+      "max": 25,
+      "note": "Glorious GMMK 2 65% Fox white. Residue. Street ~$80-$160."
+    },
+    {
+      "id": 4123689,
+      "max": 350,
+      "note": "LG 27GX790B 540/720 OLED. Preferred main. User cap $350 keep, thin flip."
+    },
+    {
+      "id": 4115828,
+      "max": 150,
+      "note": "LG 27GS93QE 240Hz OLED. Remote missing."
+    },
+    {
+      "id": 4124249,
+      "max": 250,
+      "note": "AOC Q27GAZD QD-OLED 240Hz."
+    },
+    {
+      "id": 4126490,
+      "max": 250,
+      "note": "AOC Q27G4SMN Mini LED 300Hz. Side, not instead of 27GX790B."
+    },
+    {
+      "id": 4127166,
+      "max": 650,
+      "note": "CyberPower i5-14400F / RTX 5060. Power-tested. Prefer over 4127189."
+    },
+    {
+      "id": 4127189,
+      "max": 650,
+      "note": "Same CyberPower, not noted as tested. Skip if 4127166 is alive."
+    },
+    {
+      "id": 4116917,
+      "max": 100,
+      "note": "Corsair 4000D Wood RS + 4 fans."
+    },
+    {
+      "id": 4118914,
+      "max": 45,
+      "note": "Thermalright Frozen Prism 360. Overstock."
+    },
+    {
+      "id": 4114984,
+      "max": 120,
+      "note": "Coway Airmega 240W. Open, power-tested. Street ~$299 / list $479."
+    },
+    {
+      "id": 4111905,
+      "max": 50,
+      "note": "Graco Made2Grow 5-in-1 Lee. $30 copy. Cheaper twins 4124097 $15 and 4124099 $20 end later."
+    },
+    {
+      "id": 4111821,
+      "max": 85,
+      "note": "ASUS ProArt PA401 wood. Open, distressed box. Street $158-$180."
+    },
+    {
+      "id": 4109221,
+      "max": 80,
+      "note": "Razer Viper V4 Pro white. Missing skates, tested. Street ~$230 CAD."
+    },
+    {
+      "id": 4108373,
+      "max": 20,
+      "note": "Evenflo Eat & Grow. Stains + missing seat cover. Prefer unused twin 4109906 at $5."
+    },
+    {
+      "id": 4108011,
+      "max": 50,
+      "note": "Corsair FRAME 4000 case only, no fans. Street $135. Wood RS + fans 4116917 is better value."
+    },
+    {
+      "id": 4145734,
+      "max": 180,
+      "note": "Yeti Roadie 24 2.0 Ultramarine Violet. Open/appears new. Street $350. Prefer this later copy over 4138078."
+    },
+    {
+      "id": 4146665,
+      "max": 200,
+      "note": "Yeti Hopper Flip 18 navy. Brand new. Street $400. Soft cooler, 30 cans."
+    },
+    {
+      "id": 4137986,
+      "max": 90,
+      "note": "Coleman Pro 55qt wheeled Neptune. Wheel scuffs. Street often $300-$350. Big wheeled keep if they skip Yeti."
+    },
+    {
+      "id": 4178428,
+      "max": 300,
+      "note": "Frigidaire FFFU13F2VV 13 cu ft garage-ready upright SS. Power-tested, exterior dents, inner blemishes. Street ~$800-$1050. ~143 lb. HV 1106 ends 6:30pm Sun."
+    }
+  ]
+}

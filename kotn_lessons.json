@@ -1,0 +1,282 @@
+{
+  "updated": "2026-09-05",
+  "auctions": {
+    "hv": 1106,
+    "os": 1105,
+    "pallet": 1107,
+    "halloween": 1108
+  },
+  "priority": "hv",
+  "search": {
+    "param": "find",
+    "broken_params": ["q", "search"],
+    "notes": [
+      "The search box sets find= then redirects to /auctions/all and strips category and page.",
+      "Stay on one auction by editing the URL: /auctions/1106?find=TERM (HV) and /auctions/1105?find=TERM (OS). IDs change each week; read the homepage. Week of Sun 6 Sep 2026: HV 1106, OS 1105, pallet 1107, Halloween blowout 1108 (Mon 7 Sep).",
+      "Two words are AND. Quotes return zero results. SKUs are not indexed.",
+      "Index is title-only (plus model in the title). Descriptions and SKUs are not searchable.",
+      "JS tiles hide bids; scrape listing pages for var initialBids. /listings/refresh is login-walled.",
+      "Do not skip /led / on OLED hunts — it matches the letters inside OLED.",
+      "Per-query false-positive regexes must not run on posted_desc/category crawls.",
+      "PC parts: gpu matches Songmics patio umbrellas (GPU09). cooler matches ice chests. processor matches food processors. psu matches jumpsuits. kingston matches brass bathroom trim. lian matches Alliance alcohol pads unless quoted as lian li. Prefer model/brand: thermalright, 4000d, tomahawk, frozen prism, uni fan, pa401.",
+      "Peripherals: stream deck matches kitchen faucets. yeti also matches Rambler mugs — skip rambler/tumbler/mug/bottle when hunting ice chests, but never skip cooler (Hopper/Roadie/Tundra). powera matches Powerade. webcam matches sewer cameras. headset/controller as lone words match camping and pickleball. Search logitech/razer/keychron/k70/g502.",
+      "Monitors: find=monitor on Overstock is BP cuffs and smartwatches. This week's OS has zero gaming monitors. Use ultragear/odyssey/240hz/oled on HV.",
+      "Saturday tech hunts: crawl electronics category 4 posted_desc AND appliances category 20. Dreame/Bosch/Roomba/Tineco robot and stick vacs land in 20, not 4.",
+      "Samsung M5/M50 (LS32FM501 etc) is a 60Hz FHD smart monitor with TV apps, not a gaming panel. find=samsung also hits fridge door bins.",
+      "PC parts extra traps: frozen matches ice cream makers and Disney Frozen diapers. ram stick matches ceramic cookware. pc case matches luggage. 5070/5080/4090 match Hoover, massagers, and Seville fans. Search frozen prism / mid tower / hynix instead.",
+      "/listings/watched is login-walled. Cursor Simple Browser can show it when they are logged in; this agent cannot drive that pane. Score from screenshots or kotn_watchlist.json plus public listing pages. Never store account passwords. Do not boot Computer Use Chrome just to open watched.",
+      "PS5 consoles: find=ps5 and find=playstation on HV then OS. find=ps5 also hits Moukey MPS5 karaoke and charging docks. find=playstation hits PS4 bundles and PSP batteries. This week all consoles were HV; OS had only DualSense/docks.",
+      "3D printers: find=3d printer / kobra / adventurer / bambu / creality. find=resin is deck boxes and patio chairs. find=filament hits fishing monofilament. find=ender hits truck fender flares. find=3d hits Art3d wall panels. Resin/MSLA hunts: find=elegoo / photon / saturn / mars / formlabs / wash and cure. photon is LED face masks, saturn is Evenflo Saturn Grey car seats, mars is GIMARS litter boxes, sla is Tesla adapters. This sale: 5 FDM printers all HV, zero resin printers, zero wash-and-cure. OS has an ISTOYO epoxy craft mixer, not an MSLA.",
+      "Baby diapers: find=pampers and find=huggies. find=diaper on HV is almost all Diaper Genie pails. Actual packs this week are Overstock (300+), $1 increment. Skip pull-ups/goodnites unless they asked for training pants.",
+      "Baby wipes: find=wipes then find=huggies wipes / pampers wipes / skin essentials. HV has none this week. OS find=wipes is mostly Noveha eyelid wipes, Optico lens wipes, and Cottonelle flushable. find=wipe hits windshield wiper blades and Skip Hop wipeable changing pads. Wed 19 Aug 2026: only one baby-wipe lot, 4131756 Huggies Skin Essentials 224ct incomplete (notes: missing 2).",
+      "Wired in-ears this drop: find=earbuds / wired earbuds. HV has none. OS has Ludos Omnitone USB-C and one Heyday 3.5mm. Most Heyday hits are on-ear or wireless. find=headset is office/gaming over-ears and camping junk.",
+      "find=ram hits Dodge Ram truck parts (BBK headers, cold-air intakes). find=case hits iPad keyboard cases. find=core x also matches random 'core' titles. Prefer rtx / 4000d / ultragear / odyssey / gmmk.",
+      "Wed 19 Aug 2026 (HV 1095 / OS 1094): still no loose modern GPU, AM5, DDR5 kit, PSU, or mid-tower case. Real PC tech is HV prebuilt + monitors + one eGPU enclosure.",
+      "LG 27GX704A-B (GX7) is 27\" QHD 240Hz glossy MLA+ OLED with a bottom joystick OSD. Not the 540/720 27GX790B. OLED Care mentions a remote in the box, but the full OSD is on the joystick — unlike 27GS93QE which locked without the remote.",
+      "Samsung LS49CG952ENXZA is Odyssey G95C 49\" Dual QHD 240Hz VA, not OLED. Street often ~$1000 CAD (Best Buy). OLED G9 SKUs are LS49CG932 / LS49CG954 / LS49DG954.",
+      "Razer Core X V2 (RC21-02270200) is the Thunderbolt 5 enclosure only. GPU and a standard ATX PSU are sold separately. Needs a TB5 host. Street ~$350–500 CAD empty.",
+      "Gaming mice Thu 20 Aug 2026: no Razer/Logitech G/Superlight/Zowie/Lamzu. find=mouse and find=model o are Mickey Mouse diapers. find=g pro dumps junk. find=g502 hits Samsung Odyssey G5 S27FG502SN. find=viper is Sno Storm Vipernex sleds. find=gaming mouse hits Corsair/Beluga desk mats. Only real gaming mouse this scan is OS Redragon Mirage2 M690-1.",
+      "Apparel: Adult clothes are category 1. find=north face this week is backpacks only (Borealis, Women's Jester), no TNF jackets. THE NORTH FAN is a knockoff Jester — skip. find=the north hits BPS Northern Flight waders and True North t-shirts. find=supreme is Keurig K-Supreme and Intex air mattresses. No Patagonia/Arc'teryx/Canada Goose/lululemon/Moncler this scan. Carhartt jackets are the expensive clothes.",
+      "Cat litter boxes: find=litter then petsafe / omega paw / iris. find=litter also hits glitter, table runners, chin splitters, headphones with splitter. find=litter robot is zero this week (no Whisker). find=whisker is a milk frother. Pets category 11. Sat 22 Aug freeze: HV has PetSafe ScoopFree Smart/Pro/Plus plus many no-name 90L app boxes. OS has Omega Paw, IRIS, Amazon Basics, stainless twins, and a sealed 3pk ScoopFree trays.",
+      "Expensive ice chests Sun 23 Aug 2026: search hopper / roadie / tundra / yeti / igloo, not cooler alone (the PC-cooler skip hides ice chests). Do not skip yeti titles that contain cooler — that hid Hopper Flip 18, Roadie 24, and Tundra 65. find=rtic matches the letters inside vertical (Keter sheds, filing cabinets, sausage stuffers). find=orca is Happy Nappers. find=canyon is GMC Canyon fog lights. This week HV has two Roadie 24 2.0 Ultramarine Violet, one Hopper Flip 18 navy sealed, and a beat Matco-sticker Tundra 65. Zero RTIC/Orca/Canyon/Pelican ice chests. OS is only cheap Igloo/Coleman lunch bags.",
+      "Wed 19 Aug afternoon: still no loose GPU/AM5/DDR5/PSU/case. New HV monitors: ASUS PG27AQWP-W is the 540/720 dual-mode OLED (same class as 27GX790B) but this copy has light lines across the whole screen — skip as a keep. Samsung S27FG810SN is Odyssey G81SF 27\" 4K 240Hz QD-OLED, open/appears new. UGREEN DXP4800 Plus is a diskless 4-bay NAS (Pentium Gold 8505 / 8GB / 10GbE), street ~$555–$860.",
+      "Stand-up freezers Sat 5 Sep 2026 (HV 1106 / OS 1105): search upright freezer / fffu / garage ready, then crawl appliances cat 20. find=upright is vacuums, rollators, steamers. find=freezer is 12V Euhomy, mini fridge combos, Ziploc bags on OS, and chest freezers. Only one true upright this scan: HV 4178428 Frigidaire FFFU13F2VV 13 cu ft garage-ready, power-tested, exterior dents. OS has zero freezers besides bags. Chests this week: Hisense FC88D6CWD 8.8 and two dented Arctic King 5.0. Midea MRT21D3BST is a 21 cu ft fridge with a top freezer, not a stand-up freezer."
+    ]
+  },
+  "categories": {
+    "1": "Adult Apparel & Shoes",
+    "2": "Automotive",
+    "3": "Collectibles, Hobbies & Games",
+    "4": "Electronics, Video Games & Acc.",
+    "5": "Wellness, Beauty & Grooming",
+    "6": "Home & Garden",
+    "7": "Home Renovation",
+    "8": "Kids, Babies & Toys",
+    "9": "Books, Music & Movies",
+    "10": "Office/Store Items, Arts & Crafts",
+    "11": "Pets",
+    "12": "Sports & Fitness",
+    "13": "Tools & Industrial",
+    "15": "Adult 18+",
+    "16": "Holiday & Events",
+    "17": "Jewellery, Watches & Accessories",
+    "18": "Outdoors & Travel",
+    "19": "Food & Groceries",
+    "20": "Appliances & Maintenance",
+    "21": "Lifestyle & Recreational"
+  },
+  "conditions": [
+    "brand-new",
+    "appears-new",
+    "refurbished",
+    "minor-issues",
+    "handled",
+    "as-is"
+  ],
+  "order_by": ["posted_desc", "ending_asc"],
+  "fees": {
+    "premium": 0.10,
+    "handling_per_item": 1.0,
+    "hst": 0.13,
+    "card_extra_pre_tax": 0.02,
+    "etransfer_one_lot_approx": "bid * 1.243 + 1.13"
+  },
+  "false_positives": [
+    {
+      "query": "milwaukee",
+      "skip_title_re": "leather|motorcycle|jacket|hoodie|boot|compatible|fits|for milwaukee|adapter|inverter|scrubber|step.?down"
+    },
+    {
+      "query": "oled",
+      "skip_title_re": "oximeter|strobe baton|smart watch|\\bamoled\\b|protective case|screen protector"
+    },
+    {
+      "query": "8.5",
+      "skip_title_re": "gate|toilet|bidet|cushion|pool|cooker|38\\.5|18\\.5|28\\.5|7\\.5"
+    },
+    {
+      "query": "dewalt",
+      "skip_title_re": "compatible for dewalt|fits 20v dewalt|works with 20v dewalt|fitment compatible|diytoolifz|yawv"
+    },
+    {
+      "query": "makita",
+      "skip_title_re": "compatible with makita|fits makita"
+    },
+    {
+      "query": "gpu",
+      "skip_title_re": "umbrella|gpu09|songmics"
+    },
+    {
+      "query": "cooler",
+      "skip_title_re": "ice chest|camping|beverage|evaporative|fridge|freezer|bait|wine cooler|air cooler"
+    },
+    {
+      "query": "processor",
+      "skip_title_re": "food processor|blender|guitar|coffee"
+    },
+    {
+      "query": "kingston",
+      "skip_title_re": "brass|tulare|tub|bathroom|towel"
+    },
+    {
+      "query": "yeti",
+      "skip_title_re": "rambler|tumbler|mug|bottle"
+    },
+    {
+      "query": "rtic",
+      "skip_title_re": "vertical|artic|arctic"
+    },
+    {
+      "query": "upright",
+      "skip_title_re": "vacuum|rollator|steamer|walker|carpet|garment"
+    },
+    {
+      "query": "freezer",
+      "skip_title_re": "ziploc|duraglass|bag|12v|euhomy|portable|car fridge"
+    },
+    {
+      "query": "stream deck",
+      "skip_title_re": "faucet|kitchen|deck mount"
+    },
+    {
+      "query": "powera",
+      "skip_title_re": "powerade"
+    },
+    {
+      "query": "monitor",
+      "skip_title_re": "blood pressure|glucose|radon|air quality|fitness tracker|smart watch|baby|stepper|treadmill|in.?ear monitor"
+    },
+    {
+      "query": "frozen",
+      "skip_title_re": "ice cream|slushi|creami|drink maker|goodnites|pullups|disney frozen|heat tape|pipe"
+    },
+    {
+      "query": "ram stick",
+      "skip_title_re": "ceramic|non-?stick|skillet|cookware|rice cooker|saute|frying"
+    },
+    {
+      "query": "pc case",
+      "skip_title_re": "suitcase|luggage|comforter|pillow case|gun cleaning|ride on"
+    },
+    {
+      "query": "5070",
+      "skip_title_re": "hoover|powerdash|fh507"
+    },
+    {
+      "query": "5080",
+      "skip_title_re": "massager|hw508|roman chair"
+    },
+    {
+      "query": "4090",
+      "skip_title_re": "seville|tower fan|1704090"
+    },
+    {
+      "query": "ps5",
+      "skip_title_re": "moukey|\\bmps5\\b|karaoke|cooling.?charging station|charging dock|charging station"
+    },
+    {
+      "query": "playstation",
+      "skip_title_re": "playstation 4|\\bps4\\b|psp1000|\\bpsp\\b|assassins creed"
+    },
+    {
+      "query": "resin",
+      "skip_title_re": "deck|storage box|adirondack|muskoka|bird bath|bocce|magnet"
+    },
+    {
+      "query": "filament",
+      "skip_title_re": "fishing|monofilament|string light"
+    },
+    {
+      "query": "ender",
+      "skip_title_re": "fender|blender"
+    },
+    {
+      "query": "photon",
+      "skip_title_re": "face mask|therapy|skin rejuvenation|red light"
+    },
+    {
+      "query": "saturn",
+      "skip_title_re": "car seat|evenflo|tribute"
+    },
+    {
+      "query": "mars",
+      "skip_title_re": "gimars|litter"
+    },
+    {
+      "query": "sla",
+      "skip_title_re": "tesla|j1772|spigen|frunk"
+    },
+    {
+      "query": "3d",
+      "skip_title_re": "art3d|slat wall|acoustic panel|resin magnet"
+    },
+    {
+      "query": "arctic",
+      "skip_title_re": "pillow|lego|jacket|slushi|luggage|samsonite"
+    },
+    {
+      "query": "water cooler",
+      "skip_title_re": "bottom loading|frigidaire|avalon|ice maker"
+    },
+    {
+      "query": "ram",
+      "skip_title_re": "dodge ram|ram 1500|ram 2500|5\\.7 hemi|bbk"
+    },
+    {
+      "query": "wipes",
+      "skip_title_re": "eyelid|demodex|optico|optical|cottonelle|flushable"
+    },
+    {
+      "query": "wipe",
+      "skip_title_re": "windshield|wiper blade|wiper linkage|wipeable|beam wiper"
+    },
+    {
+      "query": "g502",
+      "skip_title_re": "odyssey|s27fg502|fg502"
+    },
+    {
+      "query": "viper",
+      "skip_title_re": "vipernex|sled|snow"
+    },
+    {
+      "query": "gaming mouse",
+      "skip_title_re": "mouse pad|mousepad|desk mat"
+    },
+    {
+      "query": "mouse",
+      "skip_title_re": "mickey|minnie|huggies|pull-?ups|diaper|plush|funko|creme shop"
+    },
+    {
+      "query": "model o",
+      "skip_title_re": "mickey|minnie|huggies|pull-?ups"
+    },
+    {
+      "query": "supreme",
+      "skip_title_re": "keurig|k-supreme|air mattress|intex|dura-beam"
+    },
+    {
+      "query": "the north",
+      "skip_title_re": "northern flight|northern maple|northern reflections|true north|north fan"
+    },
+    {
+      "query": "north face",
+      "skip_title_re": "north fan"
+    },
+    {
+      "query": "litter",
+      "skip_title_re": "glitter|sequin|chin splitter|spoiler|splitter cable|mpow|hello kitty|otterbox|book cloth"
+    }
+  ],
+  "junk_title_re": "enventor mini|deko pro|dekopro|generic mini chainsaw|peektook|devenbo|hooseen|seesii|milbis|zegjaw|maxlander|adedad|tlysxpro salt and pepper",
+  "user": {
+    "lg_oled_27gs93qe_max": 150,
+    "lg_oled_27gx704a_max": 200,
+    "lg_oled_27gx790b_max": 350,
+    "asus_pg27aqwp_lines_skip": true,
+    "kotn_username": "fabiogaipo",
+    "always_both_auctions": true,
+    "prioritize": "high-value",
+    "watchlist": "kotn_watchlist.json",
+    "bidding": "Advise only. User places bids in their browser. Never store KOTN password or cookies. Username is public bid data only."
+  }
+}
