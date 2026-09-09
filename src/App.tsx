@@ -175,6 +175,18 @@ export default function App() {
             <button type="button" className="ghost" onClick={() => void refresh()}>
               Refresh
             </button>
+            {query.trim() && (
+              <button
+                type="button"
+                className="ghost"
+                onClick={() => {
+                  setQuery("");
+                  setSearchHits([]);
+                }}
+              >
+                Clear search
+              </button>
+            )}
             <select value={chain} onChange={(event) => setChain(event.target.value)}>
               <option value="solana">Solana</option>
               <option value="base">Base</option>
