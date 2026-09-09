@@ -7,6 +7,7 @@ import {
   lookupAddresses,
   searchTokens,
 } from "./api";
+import { checkTokenRug, type RugReport } from "./rug";
 import { extractMentions } from "./extract";
 import {
   ageLabel,
@@ -57,6 +58,9 @@ export default function App() {
   const [updatedAt, setUpdatedAt] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [chain, setChain] = useState("solana");
+  const [rugs, setRugs] = useState<Record<string, RugReport>>({});
+  const [rugBusy, setRugBusy] = useState<Record<string, boolean>>({});
+  const [rugError, setRugError] = useState<Record<string, string>>({});
 
   const refresh = useCallback(async () => {
     setStatus("busy");
@@ -126,6 +130,26 @@ export default function App() {
     });
   }
 
+  async function runRugCheck(token: TrackedToken) {
+    setRugBusy((current) => ({ ...current, [token.id]: true }));
+    setRugError((current) => {
+      const next = { ...current };
+      delete next[token.id];
+      return next;
+    });
+    try {
+      const report = await checkTokenRug(token);
+      setRugs((current) => ({ ...current, [token.id]: report }));
+    } catch (err) {
+      setRugError((current) => ({
+        ...current,
+        [token.id]: err instanceof Error ? err.message : "Rug check failed",
+      }));
+    } finally {
+      setRugBusy((current) => ({ ...current, [token.id]: false }));
+    }
+  }
+
   async function scanContracts() {
     const addresses = [...mentions.solana, ...mentions.evm];
     if (addresses.length === 0) {
@@ -134,8 +158,10 @@ export default function App() {
     }
     setStatus("busy");
     try {
-      setScanned(await lookupAddresses(addresses.slice(0, 8)));
+      const tokens = await lookupAddresses(addresses.slice(0, 8));
+      setScanned(tokens);
       setStatus("ok");
+      await Promise.all(tokens.map((token) => runRugCheck(token)));
     } catch (err) {
       setStatus("err");
       setError(err instanceof Error ? err.message : "Lookup failed");
@@ -160,7 +186,7 @@ export default function App() {
           <div className="logo">XR</div>
           <div>
             <h1>XMeme Radar</h1>
-            <p>Twitter / X memecoin monitor — DexScreener socials, boosts, and live X search.</p>
+            <p>Twitter / X memecoin monitor with on-demand rugpull checks from RugCheck + GoPlus.</p>
           </div>
         </div>
         <form className="search-wrap" onSubmit={onSearch}>
@@ -200,11 +226,10 @@ export default function App() {
       <div className="banner">
         <h2>What this tracks</h2>
         <p>
-          This repo did not have a Twitter memecoin monitor, so this dashboard wires one up from
-          public market APIs. It will not stream raw X firehoses without an X API key — paid tools
-          like X-Relay, TweetStream, Xanguard, and Core X Tracker do that. Here you get token
-          Twitter links the moment they hit DexScreener, plus one-click live X search for $ticker
-          and CA mentions.
+          Radar still uses public DexScreener / GeckoTerminal data and live X search. Hit
+          <b> Rug check</b> on a card to scan mint/freeze authority, LP lock, honeypot, taxes,
+          holder concentration, and thin liquidity. CA scanner runs that automatically. This is a
+          heuristic, not a guarantee — rugs still happen on “safe” looking mints.
         </p>
       </div>
 
@@ -324,6 +349,10 @@ export default function App() {
                   token={token}
                   watched={watchedIds.has(token.id)}
                   onWatch={() => toggleWatch(token)}
+                  rug={rugs[token.id]}
+                  rugBusy={Boolean(rugBusy[token.id])}
+                  rugError={rugError[token.id]}
+                  onRugCheck={() => void runRugCheck(token)}
                 />
               ))}
             </div>
@@ -344,6 +373,23 @@ export default function App() {
               “ca:” solana
             </a>
           </div>
+          <h2 style={{ marginTop: 22 }}>Last rug checks</h2>
+          {Object.keys(rugs).length === 0 ? (
+            <p>Run Rug check on a card. Solana uses RugCheck + GoPlus; EVM uses GoPlus.</p>
+          ) : (
+            visible
+              .filter((token) => rugs[token.id])
+              .slice(0, 6)
+              .map((token) => (
+                <div className="kol" key={`rug-${token.id}`}>
+                  <div>
+                    <div className="sym">${token.symbol}</div>
+                    <div className="sub">{rugs[token.id].sources.join(" · ")}</div>
+                  </div>
+                  <span className={`badge ${rugs[token.id].level}`}>{rugs[token.id].level}</span>
+                </div>
+              ))
+          )}
           <h2 style={{ marginTop: 22 }}>Watchlist</h2>
           {watch.length === 0 ? (
             <p>Star tokens from the radar to keep their X + chart links here.</p>
@@ -364,8 +410,9 @@ export default function App() {
       </div>
 
       <p className="notice">
-        Public DexScreener + GeckoTerminal data only. Not financial advice. Boosts and trending lists
-        are attention signals, not quality signals.
+        Public DexScreener, GeckoTerminal, RugCheck, and GoPlus data. Not financial advice. A
+        “safe” badge is not a promise — it only means the usual mint/freeze/LP/honeypot flags were
+        quiet.
       </p>
     </div>
   );
@@ -400,10 +447,18 @@ function TokenCard({
   token,
   watched,
   onWatch,
+  rug,
+  rugBusy,
+  rugError,
+  onRugCheck,
 }: {
   token: TrackedToken;
   watched: boolean;
   onWatch: () => void;
+  rug?: RugReport;
+  rugBusy: boolean;
+  rugError?: string;
+  onRugCheck: () => void;
 }) {
   const [imgOk, setImgOk] = useState(true);
   const handle = twitterHandle(token.twitterUrl);
@@ -416,12 +471,13 @@ function TokenCard({
         ) : (
           <div className="avatar fallback">{token.symbol.slice(0, 2)}</div>
         )}
-        <div>
+        <div className="grow">
           <div className="sym">${token.symbol}</div>
           <div className="sub">
             {token.name} · {token.chainId} · {shortAddress(token.tokenAddress)}
           </div>
         </div>
+        {rug && <span className={`badge ${rug.level}`}>{rug.level}</span>}
       </div>
       {token.description && <div className="desc">{token.description}</div>}
       <div className="metrics">
@@ -438,6 +494,17 @@ function TokenCard({
           <b className={change && change < 0 ? "neg" : "pos"}>{pct(change)}</b>
         </div>
       </div>
+      {rug && (
+        <ul className="flags">
+          {rug.flags.slice(0, 6).map((flag) => (
+            <li key={flag.id} className={flag.level}>
+              <b>{flag.label}</b>
+              <span>{flag.detail}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {rugError && <p className="empty">{rugError}</p>}
       <div className="actions">
         <a className="mini x" href={xUrl(token)} target="_blank" rel="noreferrer">
           {handle ? `@${handle}` : "X search"}
@@ -455,6 +522,9 @@ function TokenCard({
         </a>
         <button className="mini" onClick={onWatch}>
           {watched ? "Unwatch" : "Watch"}
+        </button>
+        <button className="mini rug" onClick={onRugCheck} disabled={rugBusy}>
+          {rugBusy ? "Checking…" : rug ? "Re-check" : "Rug check"}
         </button>
       </div>
     </article>

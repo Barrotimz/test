@@ -180,6 +180,87 @@ img {
   align-items: center;
 }
 
+.grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.badge {
+  text-transform: uppercase;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  border-radius: 999px;
+  padding: 4px 8px;
+  white-space: nowrap;
+}
+
+.badge.safe {
+  background: #16361f;
+  color: var(--good);
+}
+
+.badge.caution {
+  background: #3a2f12;
+  color: #f5c451;
+}
+
+.badge.danger {
+  background: #3a1418;
+  color: var(--red);
+}
+
+.badge.unknown {
+  background: var(--panel-2);
+  color: var(--muted);
+}
+
+.flags {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.flags li {
+  font-size: 12px;
+  line-height: 1.35;
+  padding-left: 8px;
+  border-left: 2px solid var(--line);
+}
+
+.flags li b {
+  display: block;
+}
+
+.flags li span {
+  color: var(--muted);
+}
+
+.flags li.pass {
+  border-color: var(--good);
+}
+
+.flags li.warn {
+  border-color: #f5c451;
+}
+
+.flags li.fail {
+  border-color: var(--red);
+}
+
+.mini.rug {
+  border-color: #4a6a2a;
+  color: var(--lime);
+}
+
+.mini:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
 .avatar {
   width: 42px;
   height: 42px;

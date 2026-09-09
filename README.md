@@ -21,6 +21,10 @@ If you want sub-second tweet alerts into Telegram/Discord/bots:
 - **KOL watch** — local list of X handles with live `from:handle` search
 - **CA scanner** — paste a tweet, extract tickers / handles / Solana + EVM addresses, look them up
 - **Watchlist** — saved in `localStorage`
+- **Rug check** — on-demand scan (auto-runs in the CA scanner)
+  - Solana: [RugCheck](https://rugcheck.xyz) mint/freeze/LP lock + [GoPlus](https://gopluslabs.io) holders
+  - EVM: GoPlus honeypot, tax, mint, creator bag, unverified source
+  - Local pair stats: thin liquidity and brand-new pools
 
 ## Run
 
@@ -36,8 +40,8 @@ npm test
 npm run build
 ```
 
-Dev mode proxies DexScreener and GeckoTerminal through Vite to avoid browser CORS issues.
+Dev mode proxies DexScreener, GeckoTerminal, RugCheck, and GoPlus through Vite to avoid browser CORS issues.
 
 ## Disclaimer
 
-Public market data only. Not financial advice.
+Public market data only. A “safe” rug badge is a heuristic, not a guarantee. Not financial advice.

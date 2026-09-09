@@ -20,6 +20,16 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/gecko/, ""),
       },
+      "/rug": {
+        target: "https://api.rugcheck.xyz",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/rug/, ""),
+      },
+      "/goplus": {
+        target: "https://api.gopluslabs.io",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/goplus/, ""),
+      },
     },
   },
 });
