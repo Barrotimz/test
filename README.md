@@ -1,0 +1,43 @@
+# XMeme Radar
+
+A Twitter / X **memecoin tracker** for this repo. There was no monitor here before — this app watches tokens that just published socials or bought DexScreener boosts, then gives you one-click live X search for `$TICKER` and contract-address chatter.
+
+It is not a firehose of every tweet on X. That needs official X API credentials or a paid alert product. This dashboard uses public market APIs and deep-links into X.
+
+## Existing paid Twitter monitors
+
+If you want sub-second tweet alerts into Telegram/Discord/bots:
+
+- [X-Relay](https://x-relay.com/) — account + CA detection + DexScreener enrichment
+- [TweetStream](https://tweetstream.io/crypto-twitter-alerts) — WebSocket alerts for selected KOLs
+- [Xanguard](https://xanguard.tech/) — sub-second X alerts, pump.fun matching
+- [Core X Tracker](https://github.com/CoreXTracker/core) — meme-coin / pump.fun X tracker
+
+## What this app does
+
+- **Twitter radar** — latest DexScreener token profiles that include an X link
+- **Boosted** — tokens paying for visibility (attention, not quality)
+- **Trending** — GeckoTerminal trending pools (Solana / Base / BSC / Ethereum)
+- **KOL watch** — local list of X handles with live `from:handle` search
+- **CA scanner** — paste a tweet, extract tickers / handles / Solana + EVM addresses, look them up
+- **Watchlist** — saved in `localStorage`
+
+## Run
+
+```bash
+npm install
+npm run dev
+```
+
+Open http://localhost:5173
+
+```bash
+npm test
+npm run build
+```
+
+Dev mode proxies DexScreener and GeckoTerminal through Vite to avoid browser CORS issues.
+
+## Disclaimer
+
+Public market data only. Not financial advice.
