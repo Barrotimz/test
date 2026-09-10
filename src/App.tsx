@@ -156,6 +156,7 @@ export default function App() {
   const [scanned, setScanned] = useState<TrackedToken[]>([]);
   const [status, setStatus] = useState<"ok" | "busy" | "err">("busy");
   const [updatedAt, setUpdatedAt] = useState<number | null>(null);
+  const [quotesAt, setQuotesAt] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [rugs, setRugs] = useState<Record<string, RugReport>>({});
   const [rugBusy, setRugBusy] = useState<Record<string, boolean>>({});
@@ -649,29 +650,33 @@ export default function App() {
   useEffect(() => {
     let alive = true;
     let quoting = false;
-    const tick = async () => {
-      if (quoting) return;
-      const bag = uniqueTokens(Object.values(quoteBagRef.current).flat());
-      const targets = selectQuoteTargets(
-        bag,
-        visibleIdsRef.current,
-        openIdRef.current,
-        bagsRef.current.watch.map((token) => token.id),
-      );
-      if (targets.length === 0) return;
-      quoting = true;
-      try {
-        applyQuotes(await refreshQuotes(targets));
-      } catch {
-        // keep the last printed mcap
-      } finally {
-        quoting = false;
-      }
-    };
     const loop = async () => {
       while (alive) {
+        const bag = uniqueTokens(Object.values(quoteBagRef.current).flat());
+        const targets = selectQuoteTargets(
+          bag,
+          visibleIdsRef.current,
+          openIdRef.current,
+          bagsRef.current.watch.map((token) => token.id),
+        );
+        if (targets.length === 0) {
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          continue;
+        }
+        if (quoting) {
+          await new Promise((resolve) => setTimeout(resolve, 400));
+          continue;
+        }
+        quoting = true;
         const started = Date.now();
-        await tick();
+        try {
+          applyQuotes(await refreshQuotes(targets));
+          setQuotesAt(Date.now());
+        } catch {
+          // keep the last printed mcap
+        } finally {
+          quoting = false;
+        }
         const wait = Math.max(400, MCAP_MS - (Date.now() - started));
         await new Promise((resolve) => setTimeout(resolve, wait));
       }
@@ -700,7 +705,7 @@ export default function App() {
           />
           <div className="meta-row">
             <span className={`status ${status}`} />
-            <span>{status === "busy" ? "Refreshing…" : error ?? (updatedAt ? `Updated ${ageLabel(updatedAt)} ago` : "Idle")}</span>
+            <span>{status === "busy" ? "Refreshing…" : error ?? (updatedAt ? `Updated ${ageLabel(updatedAt)} ago` : "Live")}</span>
             <button type="button" className="ghost" onClick={() => void refresh()}>
               Refresh
             </button>
@@ -740,6 +745,7 @@ export default function App() {
         <b>{seen}</b> new
         <b>{allLive.length}</b> live
         <span>{updatedAt ? `scan ${ageLabel(updatedAt)} ago` : "starting…"}</span>
+        <span>{quotesAt ? `mcap live · ${ageLabel(quotesAt)} ago` : "mcap live · on"}</span>
         <button type="button" className="ghost" onClick={() => setShowFilters((on) => !on)}>
           {showFilters ? "Hide filters" : "Filters"}
         </button>
