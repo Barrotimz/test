@@ -21,7 +21,7 @@ If you want sub-second tweet alerts into Telegram/Discord/bots:
 - **Hot / Warm** — cross-cut of every live bag: strongest reads, then coins that are only heating up
 - **Fresh** — new pools and bonding coins (pump.fun, Bags, BNB / Four.meme, Robinhood, global Gecko). Filter by launchpad chip.
 - **Cooling** — dumps and trap-shaped prints so you can skip late candles
-- **Twitter radar** — every live coin with an X trail: Dex pair tweet links (the Plumber miss was a Polymarket status URL, not a Dex profile), pump handles, and profiles. Pair socials are backfilled from DexScreener. Sorted by likes, then the rip.
+- **Twitter radar** — wide net for tweet-driven rips. Pair tweet links, pump handles, Dex profiles, **and** new coins already printing volume (the Plumber shape) before the tweet is attached. Each cycle searches job/news names plus today's hottest tickers, backfills Dex pair socials (80 at a time), and pulls more pump / Gecko / Solana-Base-BNB new pools.
 - **Boosted** — tokens paying for visibility (attention, not quality)
 - **KOL watch** — local list of X handles with live `from:handle` search
 - **CA scanner** — paste a tweet, extract tickers / handles / Solana + EVM addresses, look them up

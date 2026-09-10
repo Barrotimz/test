@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { attachXTrail, hasXTrail, pickRadarTokens, pickTwitterUrl } from "./social";
+import {
+  attachXTrail,
+  hasXTrail,
+  isTapeOpportunity,
+  pickRadarTokens,
+  pickTwitterUrl,
+  radarSearchQueries,
+} from "./social";
 import type { TrackedToken } from "./types";
 
 const token = (extra: Partial<TrackedToken> = {}): TrackedToken => ({
@@ -30,13 +37,18 @@ describe("twitter radar trail", () => {
     expect(hasXTrail(token({ description: "posted by @plumbercoin" }))).toBe(true);
   });
 
-  it("sorts radar by likes then the 1h rip", () => {
-    const quiet = token({ id: "solana:a", tweetLikes: 2, change1h: 10 });
-    const ripped = token({ id: "solana:b", twitterUrl: "https://x.com/x", change1h: 220, volume1h: 600_000 });
-    const viral = token({ id: "solana:c", twitterUrl: "https://x.com/y", tweetLikes: 400, change1h: 20 });
-    expect(pickRadarTokens([quiet, ripped, viral]).map((row) => row.id)).toEqual([
-      "solana:c",
-      "solana:b",
-    ]);
+  it("puts a Plumber-shaped rip on radar even before the tweet is attached", () => {
+    const now = Date.now();
+    const plumber = token({
+      id: "solana:g8",
+      change1h: 225,
+      volume1h: 637_000,
+      volume5m: 48_000,
+      pairCreatedAt: now - 40 * 60_000,
+    });
+    const dead = token({ id: "solana:dead", symbol: "DEAD", change1h: 2, volume1h: 200 });
+    expect(isTapeOpportunity(plumber, now)).toBe(true);
+    expect(pickRadarTokens([plumber, dead], now).map((row) => row.id)).toEqual(["solana:g8"]);
+    expect(radarSearchQueries([plumber])).toEqual(expect.arrayContaining(["Plumber", "Polymarket"]));
   });
 });

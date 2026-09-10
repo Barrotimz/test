@@ -11,6 +11,7 @@ import {
   fetchPumpNewest,
   hydrateBoosts,
   lookupAddresses,
+  searchMany,
   searchTokens,
 } from "./api";
 import { CHAINS, GECKO_NETWORKS, chainLabel, normalizeChain } from "./chains";
@@ -54,7 +55,7 @@ import {
   type TokenAnalysis,
 } from "./analyze";
 import { detectTodayMetas, metaForToken, metaSearchQueries, pickMetaCoins, type TodayMeta } from "./meta";
-import { pickRadarTokens } from "./social";
+import { pickRadarTokens, radarSearchQueries } from "./social";
 import {
   brainInsights,
   emptyBrain,
@@ -69,8 +70,8 @@ const KOL_KEY = "xmeme-kols";
 const LEARN_KEY = "xmeme-runner-brain";
 const POLL_MS = 6500;
 const SOCIAL_MS = 7000;
-const SOCIAL_BATCH = 4;
-const BOARD_LIMIT = 48;
+const SOCIAL_BATCH = 6;
+const BOARD_LIMIT = 60;
 const TABS: { id: TabId; label: string; heat?: boolean }[] = [
   { id: "trending", label: "Trending", heat: true },
   { id: "meta", label: "Today's meta", heat: true },
@@ -109,7 +110,7 @@ const HEAT_COPY: Partial<Record<TabId, { title: string; body: string }>> = {
   },
   radar: {
     title: "Twitter radar",
-    body: "Every live coin with an X trail — tweet links on the pair (the Plumber miss was a Polymarket status URL), pump handles, and Dex profiles. Sorted by likes, then the rip.",
+    body: "Wide net for tweet-driven rips: pair status links, pump handles, Dex profiles, plus new coins already printing volume (the Plumber shape) while we attach the tweet. We also search job/news names and today's hottest tickers.",
   },
   cooling: {
     title: "Cooling",
@@ -230,7 +231,22 @@ export default function App() {
     geckoCursor.current += 1;
     try {
       const jobs: Promise<void>[] = [];
-      if (tick === 0 || tick % 6 === 0) {
+      const bag = uniqueTokens(Object.values(bagsRef.current).flat());
+      const queries = radarSearchQueries(
+        bag,
+        metaSearchQueries(detectTodayMetas(bag, brainRef.current.lessons)),
+      );
+      const querySlice = [0, 1, 2].map((offset) => queries[(tick + offset) % Math.max(queries.length, 1)]).filter(Boolean);
+      jobs.push(
+        searchMany(querySlice.length ? querySlice : ["Plumber"])
+          .then((rows) => {
+            ingest(rows, setRadar);
+            ingest(rows, setTrending);
+            ingest(rows, setLaunching);
+          })
+          .catch(() => undefined),
+      );
+      if (tick === 0 || tick % 8 === 0) {
         jobs.push(
           lookupAddresses(["G8dmGbWTEFeK8Xmj5YaukwNsAKXCDEQfm11d5987crmZ"])
             .then((rows) => {
@@ -239,66 +255,43 @@ export default function App() {
             })
             .catch(() => undefined),
         );
-        jobs.push(
-          searchTokens("Plumber")
-            .then((rows) => {
-              ingest(rows, setRadar);
-              ingest(rows, setTrending);
-            })
-            .catch(() => undefined),
-        );
       }
-      if (tick % 2 === 0) {
-        jobs.push(fetchPumpNewest(48).then((rows) => ingest(rows, setLaunching)).catch(() => undefined));
-      } else {
+      jobs.push(fetchPumpNewest(64).then((rows) => ingest(rows, setLaunching)).catch(() => undefined));
+      if (tick % 2 === 1) {
         jobs.push(fetchBagsLaunches().then((rows) => ingest(rows, setLaunching)).catch(() => undefined));
       }
+      jobs.push(
+        fetchGeckoGlobal("new_pools", tick % 2 === 0 ? 1 : 2).then((rows) => {
+          ingest(rows, setLaunching);
+        }),
+      );
+      jobs.push(
+        fetchGeckoPools(["solana", "base", "bsc", "robinhood"][tick % 4] ?? "solana", "new_pools").then((rows) => {
+          ingest(rows, setLaunching);
+        }),
+      );
       if (tick % 2 === 0) {
-        jobs.push(
-          fetchGeckoGlobal("new_pools", tick % 4 === 0 ? 1 : 2).then((rows) => {
-            ingest(rows, setLaunching);
-          }),
-        );
-      } else {
-        jobs.push(
-          fetchGeckoPools(tick % 4 === 1 ? "bsc" : "robinhood", "new_pools").then((rows) => {
-            ingest(rows, setLaunching);
-          }),
-        );
+        jobs.push(fetchPumpHottest(36).then((rows) => ingest(rows, setLaunching)).catch(() => undefined));
       }
-      if (tick % 4 === 0) {
-        jobs.push(fetchPumpHottest(20).then((rows) => ingest(rows, setLaunching)).catch(() => undefined));
-      }
-      if (tick % 4 === 2) {
+      if (tick % 3 === 0) {
         jobs.push(fetchGeckoGlobal("trending_pools").then((rows) => ingest(rows, setTrending)));
       }
-      if (tick % 6 === 0) {
-        jobs.push(fetchPumpByMcap(16).then((rows) => ingest(rows, setTrending)).catch(() => undefined));
+      if (tick % 5 === 0) {
+        jobs.push(fetchPumpByMcap(24).then((rows) => ingest(rows, setTrending)).catch(() => undefined));
       }
-      if (tick % 4 === 1) {
-        const bag = uniqueTokens(Object.values(bagsRef.current).flat());
-        const queries = metaSearchQueries(detectTodayMetas(bag, brainRef.current.lessons));
-        const query = queries[Math.floor(tick / 4) % Math.max(queries.length, 1)];
-        if (query) {
-          jobs.push(searchTokens(query).then((rows) => ingest(rows, setTrending)).catch(() => undefined));
-        }
-      }
-      if (tick % 2 === 1) {
-        const bag = uniqueTokens(Object.values(bagsRef.current).flat());
-        jobs.push(
-          fillSocialsFromDex(bag)
-            .then((rows) => {
-              ingest(rows, setRadar);
-              ingest(rows, setLaunching);
-              ingest(rows, setTrending);
-            })
-            .catch(() => undefined),
-        );
-      }
-      if (tick % 8 === 5 && net) {
+      jobs.push(
+        fillSocialsFromDex(bag, 80)
+          .then((rows) => {
+            ingest(rows, setRadar);
+            ingest(rows, setLaunching);
+            ingest(rows, setTrending);
+          })
+          .catch(() => undefined),
+      );
+      if (tick % 4 === 2 && net) {
         jobs.push(fetchGeckoPools(net, "new_pools").then((rows) => ingest(rows, setLaunching)));
       }
-      if (tick % 4 === 3) {
+      if (tick % 2 === 1) {
         jobs.push(
           (async () => {
             const [latestBoosts, topBoosts, profiles] = await Promise.all([
@@ -316,8 +309,8 @@ export default function App() {
               );
             });
             const [radarTokens, boostTokens] = await Promise.all([
-              hydrateBoosts(socialish.slice(0, 36), "profile"),
-              hydrateBoosts(topBoosts.slice(0, 20), "boost"),
+              hydrateBoosts(socialish.slice(0, 48), "profile"),
+              hydrateBoosts(topBoosts.slice(0, 28), "boost"),
             ]);
             ingest(radarTokens, setRadar);
             ingest(boostTokens, setBoosts);

@@ -29,7 +29,7 @@ export function mergeToken(prev: TrackedToken | undefined, incoming: TrackedToke
   };
 }
 
-export function mergeLists(prev: TrackedToken[], incoming: TrackedToken[], cap = 240): TrackedToken[] {
+export function mergeLists(prev: TrackedToken[], incoming: TrackedToken[], cap = 300): TrackedToken[] {
   if (incoming.length === 0) return prev;
   const map = new Map(prev.map((token) => [token.id, token]));
   let changed = incoming.length > 0 && prev.length === 0;

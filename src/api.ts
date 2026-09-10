@@ -436,8 +436,25 @@ function num(value?: string | null): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
-export async function fillSocialsFromDex(tokens: TrackedToken[]): Promise<TrackedToken[]> {
-  const need = tokens.filter((token) => !hasXTrail(token)).slice(0, 40);
+export async function searchMany(queries: string[]): Promise<TrackedToken[]> {
+  const rows = await Promise.allSettled(queries.slice(0, 4).map((query) => searchTokens(query)));
+  const map = new Map<string, TrackedToken>();
+  for (const row of rows) {
+    if (row.status !== "fulfilled") continue;
+    for (const token of row.value) map.set(token.id, token);
+  }
+  return [...map.values()];
+}
+
+export async function fillSocialsFromDex(tokens: TrackedToken[], limit = 80): Promise<TrackedToken[]> {
+  const need = tokens
+    .filter((token) => !hasXTrail(token))
+    .sort((a, b) => {
+      const vol = (b.volume5m ?? b.volume1h ?? 0) - (a.volume5m ?? a.volume1h ?? 0);
+      if (vol !== 0) return vol;
+      return (b.change1h ?? b.change5m ?? 0) - (a.change1h ?? a.change5m ?? 0);
+    })
+    .slice(0, limit);
   if (need.length === 0) return [];
   const byChain = new Map<string, TrackedToken[]>();
   for (const token of need) {
@@ -470,10 +487,10 @@ export async function fillSocialsFromDex(tokens: TrackedToken[]): Promise<Tracke
 }
 
 export async function lookupAddresses(addresses: string[]): Promise<TrackedToken[]> {
+  const rows = await Promise.allSettled(addresses.slice(0, 8).map((address) => searchTokens(address)));
   const tokens: TrackedToken[] = [];
-  for (const address of addresses) {
-    const matches = await searchTokens(address);
-    if (matches[0]) tokens.push(matches[0]);
+  for (const row of rows) {
+    if (row.status === "fulfilled" && row.value[0]) tokens.push(row.value[0]);
   }
   return tokens;
 }
