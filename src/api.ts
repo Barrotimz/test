@@ -44,10 +44,29 @@ function isDexUrl(url: string): boolean {
   return url.startsWith(DEX) || url.includes("api.dexscreener.com");
 }
 
-async function getJson<T>(url: string): Promise<T> {
+/** Bags moved its launch feed behind an x-api-key, so park the call instead of
+ *  spending a request every cycle on a 401 we cannot satisfy. */
+const BAGS_GATE_MS = 30 * 60_000;
+let bagsGatedUntil = 0;
+
+export function bagsIsGated(now = Date.now()): boolean {
+  return now < bagsGatedUntil;
+}
+
+export function noteBagsStatus(status: number, now = Date.now()) {
+  if (status === 401 || status === 403) bagsGatedUntil = now + BAGS_GATE_MS;
+  else if (status >= 200 && status < 400) bagsGatedUntil = 0;
+}
+
+export function resetBagsGate() {
+  bagsGatedUntil = 0;
+}
+
+async function getJson<T>(url: string, onStatus?: (status: number) => void): Promise<T> {
   if (isDexUrl(url) && dexIsCooling()) throw new Error(`429 cooling ${url}`);
   const response = await fetch(url);
   if (isDexUrl(url)) noteDexStatus(response.status);
+  onStatus?.(response.status);
   if (!response.ok) throw new Error(`${response.status} ${url}`);
   return (await response.json()) as T;
 }
@@ -575,8 +594,12 @@ type BagsLaunch = {
 };
 
 export async function fetchBagsLaunches(): Promise<TrackedToken[]> {
+  if (bagsIsGated()) return [];
   try {
-    const data = await getJson<{ response?: BagsLaunch[] }>(`${BAGS}/api/v1/token-launch/feed`);
+    const data = await getJson<{ response?: BagsLaunch[] }>(
+      `${BAGS}/api/v1/token-launch/feed`,
+      noteBagsStatus,
+    );
     return (data.response ?? []).slice(0, 40).flatMap((item) => {
       if (!item.tokenMint) return [];
       const twitter = pumpSocial(item.twitter ?? undefined, "twitter");

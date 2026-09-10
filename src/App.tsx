@@ -20,6 +20,7 @@ import {
   viewerPatchFromLive,
   dexIsCooling,
   dexCooldownLeft,
+  bagsIsGated,
 } from "./api";
 import { CHAINS, GECKO_NETWORKS, chainLabel, normalizeChain } from "./chains";
 import { LAUNCHPADS } from "./launchpads";
@@ -183,6 +184,7 @@ export default function App() {
   const [metaFilter, setMetaFilter] = useState<string>("all");
   const [brain, setBrain] = useState<RunnerBrain>(() => loadJson(LEARN_KEY, emptyBrain()));
   const [dexHold, setDexHold] = useState(0);
+  const [bagsDark, setBagsDark] = useState(false);
   const [pumpLive, setPumpLive] = useState(false);
 
   const knownIds = useRef(new Set<string>());
@@ -424,6 +426,7 @@ export default function App() {
       }
       setUpdatedAt(Date.now());
       setDexHold(dexCooldownLeft());
+      setBagsDark(bagsIsGated());
       setStatus("ok");
     } catch (err) {
       setStatus(knownIds.current.size ? "ok" : "err");
@@ -777,6 +780,7 @@ export default function App() {
         <span>{quotesAt ? `mcap live · ${ageLabel(quotesAt)} ago` : "mcap live · on"}</span>
         <span>{pumpLive ? "pump stream on" : "pump.fun HTTP"}</span>
         {dexHold > 0 ? <span>Dex cooling {Math.ceil(dexHold / 1000)}s</span> : null}
+        {bagsDark ? <span title="Bags now requires an x-api-key">Bags feed dark</span> : null}
         <button type="button" className="ghost" onClick={() => setShowFilters((on) => !on)}>
           {showFilters ? "Hide filters" : "Filters"}
         </button>

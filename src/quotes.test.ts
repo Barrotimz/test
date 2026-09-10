@@ -8,6 +8,9 @@ import {
   dexIsCooling,
   dexCooldownLeft,
   selectQuoteTargets,
+  bagsIsGated,
+  noteBagsStatus,
+  resetBagsGate,
 } from "./api";
 import type { DexTokenPair, TrackedToken } from "./types";
 
@@ -112,5 +115,24 @@ describe("geckoBaseMint", () => {
     );
     expect(mint).toBe("G8dmGbWTEFeK8Xmj5YaukwNsAKXCDEQfm11d5987crmZ");
     expect(geckoBaseMint({ id: "solana_x", attributes: { name: "x", address: "ONLYPOOL" } }, "solana")).toBeUndefined();
+  });
+});
+
+describe("bags gate", () => {
+  it("parks the feed once Bags demands an api key, and reopens on a good reply", () => {
+    resetBagsGate();
+    expect(bagsIsGated()).toBe(false);
+    noteBagsStatus(401);
+    expect(bagsIsGated()).toBe(true);
+    noteBagsStatus(200);
+    expect(bagsIsGated()).toBe(false);
+  });
+
+  it("lets the gate lapse on its own", () => {
+    resetBagsGate();
+    const now = 1_000_000;
+    noteBagsStatus(403, now);
+    expect(bagsIsGated(now + 60_000)).toBe(true);
+    expect(bagsIsGated(now + 31 * 60_000)).toBe(false);
   });
 });
