@@ -43,12 +43,15 @@ import {
   twitterHandle,
 } from "./format";
 import { DEFAULT_KOLS } from "./kols";
+import { brainInsights, emptyBrain, learnFromTokens, scoreAgainstBrain, type RunnerBrain } from "./learn";
 import type { FeedEvent, Kol, TabId, TrackedToken } from "./types";
 
 const WATCH_KEY = "xmeme-watchlist";
 const KOL_KEY = "xmeme-kols";
+const LEARN_KEY = "xmeme-runner-brain";
 const TABS: { id: TabId; label: string }[] = [
   { id: "launch", label: "Launching" },
+  { id: "learn", label: "Learned rips" },
   { id: "radar", label: "Twitter radar" },
   { id: "boosts", label: "Boosted" },
   { id: "trending", label: "Trending" },
@@ -93,16 +96,19 @@ export default function App() {
   const [rugError, setRugError] = useState<Record<string, string>>({});
   const [tweets, setTweets] = useState<TweetAttraction[]>([]);
   const [tweetBusy, setTweetBusy] = useState(false);
-  const [sortMode, setSortMode] = useState<"newest" | "hype" | "likes">("newest");
+  const [sortMode, setSortMode] = useState<"newest" | "hype" | "likes" | "learn">("newest");
   const [ageFilter, setAgeFilter] = useState<"all" | "fresh" | "bonding">("all");
   const [socialFilter, setSocialFilter] = useState<"all" | "twitter" | "likes">("all");
   const [padFilter, setPadFilter] = useState<string>("all");
+  const [brain, setBrain] = useState<RunnerBrain>(() => loadJson(LEARN_KEY, emptyBrain()));
 
   const knownIds = useRef(new Set<string>());
   const cycle = useRef(0);
   const socialBusy = useRef(new Set<string>());
   const bagsRef = useRef({ launching, radar, boosts, trending, watch });
   bagsRef.current = { launching, radar, boosts, trending, watch };
+  const brainRef = useRef(brain);
+  brainRef.current = brain;
 
   const patchToken = useCallback((id: string, extra: Partial<TrackedToken>) => {
     const apply = (prev: TrackedToken[]) =>
@@ -147,6 +153,21 @@ export default function App() {
       setSeen((count) => count + fresh.length);
     }
     setter((prev) => mergeLists(prev, incoming));
+    const learned = learnFromTokens(brainRef.current, incoming);
+    if (learned.fresh.length) {
+      brainRef.current = learned.brain;
+      setBrain(learned.brain);
+      setEvents((prev) =>
+        [
+          ...learned.fresh.map((lesson) => ({
+            id: `learn:${lesson.id}:${lesson.at}`,
+            at: lesson.at,
+            text: `LEARNED $${lesson.symbol} · ${lesson.why[0] ?? "rip"}`,
+          })),
+          ...prev,
+        ].slice(0, 24),
+      );
+    }
     void pullTweetStats(incoming);
   }, [pullTweetStats]);
 
@@ -260,6 +281,10 @@ export default function App() {
     localStorage.setItem(KOL_KEY, JSON.stringify(kols));
   }, [kols]);
 
+  useEffect(() => {
+    localStorage.setItem(LEARN_KEY, JSON.stringify(brain));
+  }, [brain]);
+
   const mentions = useMemo(() => extractMentions(scanText), [scanText]);
 
   async function onSearch(event: FormEvent) {
@@ -361,6 +386,7 @@ export default function App() {
       return hay.includes(needle);
     }),
     sortMode,
+    brain,
   );
   const opened = visible.find((token) => token.id === openId) ?? launching.find((token) => token.id === openId);
 
@@ -400,11 +426,12 @@ export default function App() {
             )}
             <select
               value={sortMode}
-              onChange={(event) => setSortMode(event.target.value as "newest" | "hype" | "likes")}
+              onChange={(event) => setSortMode(event.target.value as "newest" | "hype" | "likes" | "learn")}
             >
               <option value="newest">Newest first</option>
               <option value="hype">Hottest first</option>
               <option value="likes">Most likes</option>
+              <option value="learn">Looks like a runner</option>
             </select>
           </div>
         </form>
@@ -529,7 +556,9 @@ export default function App() {
                   ? ` (${boosts.length})`
                   : item.id === "trending"
                     ? ` (${trending.length})`
-                    : ""}
+                    : item.id === "learn"
+                      ? ` (${brain.studied})`
+                      : ""}
           </button>
         ))}
       </nav>
@@ -573,6 +602,28 @@ export default function App() {
                   </a>
                 ))}
               </div>
+            </div>
+          )}
+
+          {tab === "learn" && (
+            <div className="banner">
+              <h2>Learned from coins that ripped</h2>
+              {brainInsights(brain).map((line) => (
+                <p key={line}>{line}</p>
+              ))}
+              {brain.lessons.length === 0 ? (
+                <p>No major rip yet this session. The next 80%+ candle or viral post gets studied automatically.</p>
+              ) : (
+                brain.lessons.slice(0, 8).map((lesson) => (
+                  <div className="kol" key={lesson.id}>
+                    <div>
+                      <div className="sym">${lesson.symbol}</div>
+                      <div className="sub">{lesson.why.slice(0, 2).join(" · ")}</div>
+                    </div>
+                    <span className="badge runner">+{Math.round(lesson.peakChange)}%</span>
+                  </div>
+                ))
+              )}
             </div>
           )}
 
@@ -632,7 +683,7 @@ export default function App() {
             </div>
           )}
 
-          {visible.length === 0 && tab !== "kols" ? (
+          {visible.length === 0 && tab !== "kols" && tab !== "learn" ? (
             <p className="empty">
               {status === "busy" ? "Loading tokens…" : "Nothing here yet. Try a search or another tab."}
             </p>
@@ -649,6 +700,7 @@ export default function App() {
                   rugBusy={Boolean(rugBusy[token.id])}
                   rugError={rugError[token.id]}
                   onRugCheck={() => void runRugCheck(token)}
+                  call={scoreAgainstBrain(token, brain)}
                 />
               ))}
             </div>
@@ -847,6 +899,16 @@ export default function App() {
                 </div>
               ))
           )}
+          <h2 style={{ marginTop: 22 }}>What we learned</h2>
+          {brainInsights(brain).map((line) => (
+            <p key={line}>{line}</p>
+          ))}
+          {opened && (
+            <p className="sub">
+              ${opened.symbol} looks {scoreAgainstBrain(opened, brain).level}:{" "}
+              {scoreAgainstBrain(opened, brain).reasons[0]}
+            </p>
+          )}
           <h2 style={{ marginTop: 22 }}>Watchlist</h2>
           {watch.length === 0 ? (
             <p>Star tokens from the radar to keep their X + chart links here.</p>
@@ -875,9 +937,8 @@ export default function App() {
       </div>
 
       <p className="notice">
-        Continuous public scans of pump.fun, DexScreener, GeckoTerminal, RugCheck, GoPlus, and
-        fxtwitter. Likes come from attached X status links; profile-only accounts show followers.
-        Heuristics only. Not financial advice.
+        Continuous public scans of pump.fun, Bags, DexScreener, GeckoTerminal, RugCheck, GoPlus, and
+        fxtwitter. Rips are studied and used to score later coins. Heuristics only. Not financial advice.
       </p>
     </div>
   );
@@ -898,6 +959,7 @@ function pickTokens(
 ): TrackedToken[] {
   if (tab === "scanner") return bags.scanned;
   if (tab === "kols") return [];
+  if (tab === "learn") return bags.launch;
   if (tab === "watch") return bags.watch;
   if (tab === "boosts") return bags.boosts;
   if (tab === "trending") return bags.trending;
@@ -906,12 +968,18 @@ function pickTokens(
   return bags.radar;
 }
 
-function sortTokens(tokens: TrackedToken[], mode: "newest" | "hype" | "likes"): TrackedToken[] {
+function sortTokens(
+  tokens: TrackedToken[],
+  mode: "newest" | "hype" | "likes" | "learn",
+  brain: RunnerBrain = emptyBrain(),
+): TrackedToken[] {
   const copy = [...tokens];
   if (mode === "newest") {
     copy.sort((a, b) => (toMillis(b.pairCreatedAt) ?? 0) - (toMillis(a.pairCreatedAt) ?? 0));
   } else if (mode === "likes") {
     copy.sort((a, b) => (b.tweetLikes ?? -1) - (a.tweetLikes ?? -1) || (tweetInteractions(b) ?? -1) - (tweetInteractions(a) ?? -1));
+  } else if (mode === "learn") {
+    copy.sort((a, b) => scoreAgainstBrain(b, brain).score - scoreAgainstBrain(a, brain).score);
   } else {
     copy.sort((a, b) => scoreTokenHype(b).score - scoreTokenHype(a).score);
   }
@@ -1012,6 +1080,7 @@ function TokenCard({
   rugBusy,
   rugError,
   onRugCheck,
+  call,
 }: {
   token: TrackedToken;
   watched: boolean;
@@ -1021,6 +1090,7 @@ function TokenCard({
   rugBusy: boolean;
   rugError?: string;
   onRugCheck: () => void;
+  call: ReturnType<typeof scoreAgainstBrain>;
 }) {
   const [imgOk, setImgOk] = useState(true);
   const handle = twitterHandle(token.twitterUrl);
@@ -1050,6 +1120,11 @@ function TokenCard({
         <span className={`badge ${hype.level}`} title="Market hype from volume, pump, and boosts">
           {hype.level}
         </span>
+        {call.level !== "watch" && (
+          <span className={`badge ${call.level}`} title={call.reasons.join(" · ")}>
+            {call.level}
+          </span>
+        )}
         {rug && <span className={`badge ${rug.level}`}>{rug.level}</span>}
       </div>
       {token.description && <div className="desc">{token.description}</div>}

@@ -30,6 +30,7 @@ If you want sub-second tweet alerts into Telegram/Discord/bots:
 - **Token hype** — each card gets a market-attraction badge from 24h volume, 1h pump, Dex boosts, turnover, and tweet likes
 - **Filters** — last hour, still bonding, has X, has likes; sort newest / hottest / most likes
 - **Padre** — Copy CA sits next to a Padre button that opens `https://trade.padre.gg/trade/{chain}/{contract}` for that exact coin (Solana, BNB, ETH, Base)
+- **Learned rips** — every coin that rips (big candle, viral post, late bonding) is studied: likes, age, pad, chain, buy pressure. The next launches get a **setup / runner** score from that memory (saved in the browser). Heuristic only.
 - **Coin age** — pair/pool created-at on every card (`just launched`, `12m old`, `5h old`, `3d old`). Sort **Newest first** or **Hottest first**. These are already-trading coins, not unreleased launches.
 
 ## Run

@@ -236,9 +236,15 @@ img {
   color: var(--cyan);
 }
 
-.badge.viral {
+.badge.viral,
+.badge.runner {
   background: #24380f;
   color: var(--lime);
+}
+
+.badge.setup {
+  background: #12363a;
+  color: var(--cyan);
 }
 
 .badge.fresh {
