@@ -358,6 +358,13 @@ function pumpToToken(coin: PumpCoin): TrackedToken {
   };
 }
 
+export async function fetchPumpByMcap(limit = 16): Promise<TrackedToken[]> {
+  const coins = await getJson<PumpCoin[]>(
+    `${PUMP}/coins?offset=0&limit=${limit}&sort=market_cap&order=DESC&includeNsfw=false`,
+  );
+  return coins.map(pumpToToken);
+}
+
 export async function fetchPumpNewest(limit = 40): Promise<TrackedToken[]> {
   const coins = await getJson<PumpCoin[]>(
     `${PUMP}/coins?offset=0&limit=${limit}&sort=created_timestamp&order=DESC&includeNsfw=false`,

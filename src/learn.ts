@@ -1,4 +1,4 @@
-import { pairAgeMs, tweetInteractions } from "./format";
+import { compactUsd, pairAgeMs, tweetInteractions } from "./format";
 import type { TrackedToken } from "./types";
 
 export type RunnerLesson = {
@@ -17,6 +17,7 @@ export type RunnerLesson = {
   bondingPct?: number;
   buys1h?: number;
   livestream?: boolean;
+  tier?: "rip" | "millions";
 };
 
 export type RunnerBrain = {
@@ -57,9 +58,40 @@ export function runnerWhy(token: TrackedToken): string[] {
   if ((token.boostAmount ?? 0) >= 30) why.push("paid DexScreener boosts");
   if (buys > 0 && buys >= sells * 1.6) why.push(`buy pressure ${buys} buys vs ${sells} sells in 1h`);
   if (token.launchpad) why.push(`launched on ${token.launchpad}`);
+  if (token.chainId === "robinhood") why.push("Robinhood listing — same venue as PONS-class runners");
+  if ((token.marketCap ?? 0) >= 1_000_000) {
+    why.push(`ran to ${compactUsd(token.marketCap)} mcap, far above a normal launch`);
+  }
+  if ((token.volume24h ?? 0) >= 1_000_000) why.push(`${compactUsd(token.volume24h)} 24h volume`);
   if (change >= 80) why.push(`${change.toFixed(0)}% candle`);
   if (!why.length) why.push("price and flow expanded without a clear social tell");
-  return why.slice(0, 6);
+  return why.slice(0, 7);
+}
+
+export function whyOutperformed(token: TrackedToken, pack: TrackedToken[]): string[] {
+  if (pack.length < 3) return [];
+  const extra: string[] = [];
+  const mcap = token.marketCap ?? 0;
+  const packMcap = median(pack.map((row) => row.marketCap).filter((n): n is number => n != null && n > 0));
+  const packLikes = median(pack.map((row) => row.tweetLikes).filter((n): n is number => n != null && n > 0));
+  const packVol = median(pack.map((row) => row.volume24h).filter((n): n is number => n != null && n > 0));
+  if (mcap >= 1_000_000 && packMcap && mcap > packMcap * 20) {
+    extra.push(`mcap ${compactUsd(mcap)} vs pack ~${compactUsd(packMcap)} — left the field behind`);
+  }
+  if ((token.tweetLikes ?? 0) > 0 && packLikes && (token.tweetLikes ?? 0) >= packLikes * 3) {
+    extra.push(`likes ${token.tweetLikes} vs typical ~${Math.round(packLikes)} on the same board`);
+  }
+  if ((token.volume24h ?? 0) > 0 && packVol && (token.volume24h ?? 0) >= packVol * 8) {
+    extra.push("volume dwarfed the rest of the tape");
+  }
+  if (token.twitterHandle && pack.filter((row) => row.twitterHandle).length < pack.length / 3) {
+    extra.push("had a real X account while most launches did not");
+  }
+  return extra;
+}
+
+export function isMillionRunner(token: TrackedToken): boolean {
+  return (token.marketCap ?? 0) >= 1_000_000;
 }
 
 export function isMajorRunner(token: TrackedToken): boolean {
@@ -67,6 +99,7 @@ export function isMajorRunner(token: TrackedToken): boolean {
   const mcap = token.marketCap ?? 0;
   const likes = token.tweetLikes ?? 0;
   const vol = token.volume1h ?? token.volume24h ?? 0;
+  if (isMillionRunner(token)) return true;
   if (change >= 80) return true;
   if (change >= 35 && mcap >= 40_000) return true;
   if (likes >= 400 && change >= 12) return true;
@@ -94,6 +127,7 @@ export function snapshotLesson(token: TrackedToken, at = Date.now()): RunnerLess
     bondingPct: token.bondingPct,
     buys1h: token.buys1h,
     livestream: token.livestream,
+    tier: isMillionRunner(token) ? "millions" : "rip",
   };
 }
 
@@ -106,15 +140,21 @@ export function learnFromTokens(brain: RunnerBrain, tokens: TrackedToken[], at =
   for (const token of tokens) {
     const lesson = snapshotLesson(token, at);
     if (!lesson) continue;
+    const gap = whyOutperformed(token, tokens);
+    if (gap.length) lesson.why = [...gap, ...lesson.why].slice(0, 8);
     const existing = next.lessons.findIndex((row) => row.id === lesson.id);
     if (existing === -1) {
       next.lessons.unshift(lesson);
       next.studied += 1;
       fresh.push(lesson);
-    } else if (lesson.peakChange > next.lessons[existing].peakChange + 8) {
+    } else if (
+      lesson.peakChange > next.lessons[existing].peakChange + 8 ||
+      (lesson.peakMcap ?? 0) > (next.lessons[existing].peakMcap ?? 0) * 1.2
+    ) {
       next.lessons[existing] = lesson;
     }
   }
+  next.lessons.sort((a, b) => (b.peakMcap ?? 0) - (a.peakMcap ?? 0) || b.peakChange - a.peakChange);
   next.lessons = next.lessons.slice(0, 80);
   return { brain: next, fresh };
 }
@@ -145,7 +185,18 @@ export function brainInsights(brain: RunnerBrain): string[] {
   const pads = counts(brain.lessons.map((row) => row.launchpad));
   const chains = counts(brain.lessons.map((row) => row.chainId));
   const live = brain.lessons.filter((row) => row.livestream).length;
+  const millions = brain.lessons.filter((row) => row.tier === "millions" || (row.peakMcap ?? 0) >= 1_000_000);
   const lines = [`Studied ${brain.studied} rip${brain.studied === 1 ? "" : "s"}.`];
+  if (millions.length) {
+    const names = millions.slice(0, 4).map((row) => `$${row.symbol}`).join(", ");
+    const top = millions[0];
+    lines.push(
+      `${millions.length} ran to millions (like ${names}). Top: $${top.symbol} at ${compactUsd(top.peakMcap)}.`,
+    );
+    lines.push(
+      "Those left the pack because of reach (real X account), venue (Robinhood / hot pad), and volume — not just a 5m candle.",
+    );
+  }
   if (likes != null) lines.push(`Runners usually already had ~${Math.round(likes)} likes on the post.`);
   if (age != null) lines.push(`Typical age when they popped: ~${age}m old.`);
   if (pads[0]) lines.push(`Hottest pad so far: ${pads[0].key} (${pads[0].n}).`);
@@ -210,9 +261,32 @@ export function scoreAgainstBrain(token: TrackedToken, brain: RunnerBrain): Runn
     score += 6;
     reasons.push("poster already has reach");
   }
+  if (token.twitterHandle && millionsOnRobinhood(brain) && token.chainId === "robinhood") {
+    score += 16;
+    reasons.push("Robinhood + X handle — same shape as PONS-class millions");
+  }
+  if ((token.marketCap ?? 0) >= 80_000 && (token.marketCap ?? 0) < 1_000_000) {
+    score += 10;
+    reasons.push("already leaving micro-mcap, same first step million-runners took");
+  }
 
   const capped = Math.min(100, score);
   const level: RunnerCall["level"] = capped >= 62 ? "runner" : capped >= 36 ? "setup" : "watch";
   if (!reasons.length) reasons.push("not enough overlap with studied rips yet");
   return { score: capped, level, reasons: reasons.slice(0, 4) };
+}
+
+function millionsOnRobinhood(brain: RunnerBrain): boolean {
+  return brain.lessons.some(
+    (row) => row.chainId === "robinhood" && (row.tier === "millions" || (row.peakMcap ?? 0) >= 1_000_000),
+  );
+}
+
+export function pickPossibleRunners(tokens: TrackedToken[], brain: RunnerBrain, limit = 24): TrackedToken[] {
+  return [...tokens]
+    .map((token) => ({ token, call: scoreAgainstBrain(token, brain) }))
+    .filter((row) => row.call.level === "setup" || row.call.level === "runner")
+    .sort((a, b) => b.call.score - a.call.score)
+    .slice(0, limit)
+    .map((row) => row.token);
 }

@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { brainInsights, emptyBrain, isMajorRunner, learnFromTokens, scoreAgainstBrain } from "./learn";
+import {
+  brainInsights,
+  emptyBrain,
+  isMajorRunner,
+  isMillionRunner,
+  learnFromTokens,
+  pickPossibleRunners,
+  scoreAgainstBrain,
+  whyOutperformed,
+} from "./learn";
 import type { TrackedToken } from "./types";
 
 const base = (extra: Partial<TrackedToken> = {}): TrackedToken => ({
@@ -52,5 +61,35 @@ describe("learnFromTokens", () => {
       scoreAgainstBrain(quiet, learned.brain).score,
     );
     expect(scoreAgainstBrain(twin, learned.brain).level).not.toBe("watch");
+  });
+
+  it("studies a PONS-class million-mcap coin and lists similar possibles", () => {
+    const pons = base({
+      id: "robinhood:pons",
+      chainId: "robinhood",
+      symbol: "PONS",
+      marketCap: 435_000_000,
+      volume24h: 7_500_000,
+      twitterHandle: "ponsdotfamily",
+      twitterUrl: "https://x.com/ponsdotfamily",
+    });
+    const dust = base({ id: "solana:dust", symbol: "DUST", marketCap: 2_800 });
+    expect(isMillionRunner(pons)).toBe(true);
+    const learned = learnFromTokens(emptyBrain(), [pons, dust, dust, base({ id: "solana:c" })]);
+    expect(learned.fresh[0].tier).toBe("millions");
+    expect(whyOutperformed(pons, [pons, dust, dust, base({ id: "solana:c", marketCap: 3_000 })])[0]).toMatch(/mcap/);
+    expect(brainInsights(learned.brain).join(" ")).toMatch(/millions/);
+
+    const maybe = base({
+      id: "robinhood:next",
+      chainId: "robinhood",
+      symbol: "NEXT",
+      twitterHandle: "nexthandle",
+      tweetLikes: 90,
+      marketCap: 120_000,
+      pairCreatedAt: Date.now() - 30 * 60_000,
+    });
+    const possibles = pickPossibleRunners([maybe, dust], learned.brain);
+    expect(possibles.map((row) => row.symbol)).toContain("NEXT");
   });
 });

@@ -5,6 +5,7 @@ import {
   fetchGeckoGlobal,
   fetchGeckoPools,
   fetchProfiles,
+  fetchPumpByMcap,
   fetchPumpHottest,
   fetchPumpNewest,
   hydrateBoosts,
@@ -43,7 +44,14 @@ import {
   twitterHandle,
 } from "./format";
 import { DEFAULT_KOLS } from "./kols";
-import { brainInsights, emptyBrain, learnFromTokens, scoreAgainstBrain, type RunnerBrain } from "./learn";
+import {
+  brainInsights,
+  emptyBrain,
+  learnFromTokens,
+  pickPossibleRunners,
+  scoreAgainstBrain,
+  type RunnerBrain,
+} from "./learn";
 import type { FeedEvent, Kol, TabId, TrackedToken } from "./types";
 
 const WATCH_KEY = "xmeme-watchlist";
@@ -206,6 +214,18 @@ export default function App() {
       }
       if (tick % 4 === 1) {
         jobs.push(fetchGeckoGlobal("trending_pools").then((rows) => ingest(rows, setTrending)));
+      }
+      if (tick % 5 === 0) {
+        jobs.push(
+          fetchPumpByMcap(20)
+            .then((rows) => ingest(rows, setTrending))
+            .catch(() => undefined),
+        );
+        jobs.push(
+          searchTokens("PONS")
+            .then((rows) => ingest(rows, setTrending))
+            .catch(() => undefined),
+        );
       }
       if (tick % 2 === 1) {
         jobs.push(
@@ -371,6 +391,7 @@ export default function App() {
       searchHits,
       scanned,
       query,
+      brain,
     }).filter((token) => {
       if (enabledChains.length > 0 && enabledChains.length !== CHAINS.length) {
         if (!enabledChains.includes(normalizeChain(token.chainId))) return false;
@@ -385,7 +406,7 @@ export default function App() {
       const hay = `${token.symbol} ${token.name} ${token.tokenAddress} ${token.chainId} ${token.launchpad ?? ""} ${token.twitterHandle ?? ""}`.toLowerCase();
       return hay.includes(needle);
     }),
-    sortMode,
+    tab === "learn" ? "learn" : sortMode,
     brain,
   );
   const opened = visible.find((token) => token.id === openId) ?? launching.find((token) => token.id === openId);
@@ -607,23 +628,26 @@ export default function App() {
 
           {tab === "learn" && (
             <div className="banner">
-              <h2>Learned from coins that ripped</h2>
+              <h2>Why coins like PONS ran to millions</h2>
               {brainInsights(brain).map((line) => (
                 <p key={line}>{line}</p>
               ))}
-              {brain.lessons.length === 0 ? (
-                <p>No major rip yet this session. The next 80%+ candle or viral post gets studied automatically.</p>
-              ) : (
-                brain.lessons.slice(0, 8).map((lesson) => (
-                  <div className="kol" key={lesson.id}>
-                    <div>
-                      <div className="sym">${lesson.symbol}</div>
-                      <div className="sub">{lesson.why.slice(0, 2).join(" · ")}</div>
-                    </div>
-                    <span className="badge runner">+{Math.round(lesson.peakChange)}%</span>
+              <p>
+                Cards below are <b>possible runners</b> — live launches that match what those
+                million-dollar rips did (reach, pad/chain, early age, buy flow). Not a guarantee.
+              </p>
+              {brain.lessons.slice(0, 6).map((lesson) => (
+                <div className="kol" key={lesson.id}>
+                  <div>
+                    <div className="sym">${lesson.symbol}</div>
+                    <div className="sub">{lesson.why.slice(0, 3).join(" · ")}</div>
                   </div>
-                ))
-              )}
+                  <span className={`badge ${lesson.tier === "millions" ? "runner" : "setup"}`}>
+                    {lesson.peakMcap ? compactUsd(lesson.peakMcap) : `+${Math.round(lesson.peakChange)}%`}
+                  </span>
+                </div>
+              ))}
+              <h2 style={{ marginTop: 16 }}>Possible runners</h2>
             </div>
           )}
 
@@ -683,9 +707,13 @@ export default function App() {
             </div>
           )}
 
-          {visible.length === 0 && tab !== "kols" && tab !== "learn" ? (
+          {visible.length === 0 && tab !== "kols" ? (
             <p className="empty">
-              {status === "busy" ? "Loading tokens…" : "Nothing here yet. Try a search or another tab."}
+              {tab === "learn"
+                ? "No setups match the learned rips yet. Keep the sniffer running."
+                : status === "busy"
+                  ? "Loading tokens…"
+                  : "Nothing here yet. Try a search or another tab."}
             </p>
           ) : (
             <div className="cards">
@@ -955,11 +983,14 @@ function pickTokens(
     searchHits: TrackedToken[];
     scanned: TrackedToken[];
     query: string;
+    brain: RunnerBrain;
   },
 ): TrackedToken[] {
   if (tab === "scanner") return bags.scanned;
   if (tab === "kols") return [];
-  if (tab === "learn") return bags.launch;
+  if (tab === "learn") {
+    return pickPossibleRunners([...bags.launch, ...bags.radar, ...bags.trending, ...bags.boosts], bags.brain);
+  }
   if (tab === "watch") return bags.watch;
   if (tab === "boosts") return bags.boosts;
   if (tab === "trending") return bags.trending;
