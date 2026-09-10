@@ -24,8 +24,9 @@ describe("extractMentions", () => {
     expect(mentions.tweetIds).toEqual(["20", "1234567890"]);
   });
 
-  it("also reads fixupx status links", () => {
-    expect(extractMentions("https://fixupx.com/foo/status/99").tweetIds).toEqual(["99"]);
+  it("also reads i/status and bare /status links", () => {
+    expect(extractMentions("https://x.com/i/status/555").tweetIds).toEqual(["555"]);
+    expect(firstTweetId("x.com/status/777")).toBe("777");
   });
 
   it("finds the first status id across mixed social fields", () => {

@@ -62,7 +62,8 @@ import {
 } from "./analyze";
 import { detectTodayMetas, metaForToken, metaSearchQueries, pickMetaCoins, type TodayMeta } from "./meta";
 import { pulseLabel, pulseStage, tapeQuality, twitterAgeChip } from "./read";
-import { pickRadarTokens, radarSearchQueries } from "./social";
+import { pickBuyTape, patchBuys2m, stampBuys2m, type BuySample } from "./buys";
+import { pickRadarTokens, radarQuerySlice, hasXTrail, isTapeOpportunity } from "./social";
 import {
   brainInsights,
   emptyBrain,
@@ -84,6 +85,7 @@ const TABS: { id: TabId; label: string; heat?: boolean }[] = [
   { id: "trending", label: "Trending", heat: true },
   { id: "meta", label: "Today's meta", heat: true },
   { id: "hot", label: "Hot", heat: true },
+  { id: "buys", label: "Buys 2m", heat: true },
   { id: "warm", label: "Warm", heat: true },
   { id: "launch", label: "Fresh", heat: true },
   { id: "cooling", label: "Cooling", heat: true },
@@ -108,6 +110,10 @@ const HEAT_COPY: Partial<Record<TabId, { title: string; body: string }>> = {
     title: "Hot",
     body: "Strongest reads: momentum + real X heat + volume. Not every trending pool.",
   },
+  buys: {
+    title: "Most buys · last 2 minutes",
+    body: "Coins printing the most buys right now. Dex only gives a rolling 5-minute tape — we sample it on the 10s quote tick and estimate the last two minutes. Highest buy count at the top.",
+  },
   warm: {
     title: "Warm",
     body: "Heating up — early social, late bonding, livestreams. Not confirmed yet.",
@@ -118,7 +124,7 @@ const HEAT_COPY: Partial<Record<TabId, { title: string; body: string }>> = {
   },
   radar: {
     title: "Twitter radar",
-    body: "Wide net for tweet-driven rips: pair status links, pump handles, Dex profiles, plus new coins already printing volume (the Plumber shape) while we attach the tweet. We also search job/news names and today's hottest tickers.",
+    body: "Wide net for tweet-driven rips: Dex pair + website status links, pump handles, live x.com/status hunts, and CAs that are already ripping before the tweet is attached. Bundled-look coins get a warning from clone-sized holder bags.",
   },
   cooling: {
     title: "Cooling",
@@ -186,6 +192,7 @@ export default function App() {
   openIdRef.current = openId;
   const rugBusyRef = useRef(new Set<string>());
   const visibleIdsRef = useRef<string[]>([]);
+  const buySamplesRef = useRef(new Map<string, BuySample[]>());
 
   const pendingLearn = useRef<TrackedToken[]>([]);
 
@@ -230,7 +237,9 @@ export default function App() {
 
   const applyQuotes = useCallback((rows: { id: string; patch: Partial<TrackedToken> }[]) => {
     if (rows.length === 0) return;
-    const byId = new Map(rows.map((row) => [row.id, row.patch]));
+    const byId = new Map(
+      rows.map((row) => [row.id, patchBuys2m(row.id, row.patch, buySamplesRef.current)]),
+    );
     const apply = (prev: TrackedToken[]) => {
       let changed = false;
       const next = prev.map((token) => {
@@ -289,7 +298,7 @@ export default function App() {
       setEvents((prev) => [...fresh, ...prev].slice(0, 24));
       setSeen((count) => count + fresh.length);
     }
-    setter((prev) => mergeLists(prev, incoming));
+    setter((prev) => mergeLists(prev, incoming.map((token) => stampBuys2m(token, buySamplesRef.current))));
     pendingLearn.current.push(...incoming);
   }, []);
 
@@ -302,11 +311,11 @@ export default function App() {
     try {
       const jobs: Promise<void>[] = [];
       const bag = uniqueTokens(Object.values(bagsRef.current).flat());
-      const queries = radarSearchQueries(
+      const querySlice = radarQuerySlice(
         bag,
         metaSearchQueries(detectTodayMetas(bag, brainRef.current.lessons)),
+        tick,
       );
-      const querySlice = [0, 1, 2].map((offset) => queries[(tick + offset) % Math.max(queries.length, 1)]).filter(Boolean);
       jobs.push(
         searchMany(querySlice.length ? querySlice : ["Plumber"])
           .then((rows) => {
@@ -357,8 +366,25 @@ export default function App() {
       if (tick % 5 === 0) {
         jobs.push(fetchPumpByMcap(24).then((rows) => ingest(rows, setTrending)).catch(() => undefined));
       }
+      if (tick % 2 === 0) {
+        const hunts = uniqueTokens(bag)
+          .filter((token) => !firstTweetId(token.twitterUrl, token.tweetUrl, token.websiteUrl, token.description))
+          .sort((a, b) => (b.volume5m ?? b.volume1h ?? 0) - (a.volume5m ?? a.volume1h ?? 0))
+          .slice(0, 6)
+          .map((token) => token.tokenAddress);
+        if (hunts.length) {
+          jobs.push(
+            lookupAddresses(hunts)
+              .then((rows) => {
+                ingest(rows, setRadar);
+                ingest(rows, setTrending);
+              })
+              .catch(() => undefined),
+          );
+        }
+      }
       jobs.push(
-        fillSocialsFromDex(bag, 80)
+        fillSocialsFromDex(bag, 100)
           .then((rows) => {
             ingest(rows, setRadar);
             ingest(rows, setLaunching);
@@ -452,7 +478,10 @@ export default function App() {
         if (openToken) await ensureRugCheck(openToken);
         const nextScan = uniqueTokens(bag)
           .filter((token) => !rugsRef.current[token.id] && !rugBusyRef.current.has(token.id))
-          .sort((a, b) => (b.volume5m ?? b.volume1h ?? 0) - (a.volume5m ?? a.volume1h ?? 0))
+          .sort((a, b) => {
+            const bump = (token: TrackedToken) => (hasXTrail(token) || isTapeOpportunity(token) ? 1_000_000_000 : 0);
+            return bump(b) + (b.volume5m ?? b.volume1h ?? 0) - (bump(a) + (a.volume5m ?? a.volume1h ?? 0));
+          })
           .slice(0, 1);
         for (const token of nextScan) await ensureRugCheck(token);
         await new Promise((resolve) => setTimeout(resolve, SOCIAL_MS));
@@ -548,6 +577,7 @@ export default function App() {
   );
   const metaList = useMemo(() => pickMetaCoins(allLive, activeMetas), [allLive, activeMetas]);
   const radarList = useMemo(() => pickRadarTokens(allLive), [allLive]);
+  const buyList = useMemo(() => pickBuyTape(allLive), [allLive]);
   const learnList = useMemo(
     () =>
       allLive
@@ -577,6 +607,7 @@ export default function App() {
       brain,
       metaCoins: metaList,
       radarCoins: radarList,
+      buyCoins: buyList,
       hot: hotList,
       warm: warmList,
       cooling: coolingList,
@@ -588,7 +619,7 @@ export default function App() {
       }
       if (ageFilter === "fresh" && coinAgeBucket(token.pairCreatedAt) !== "fresh") return false;
       if (ageFilter === "bonding" && token.stage !== "launching") return false;
-      if (socialFilter === "twitter" && !token.twitterUrl && !token.twitterHandle) return false;
+      if (socialFilter === "twitter" && !token.twitterUrl && !token.twitterHandle && !token.tweetUrl) return false;
       if (socialFilter === "likes" && !(token.tweetLikes && token.tweetLikes > 0)) return false;
       if (padFilter !== "all" && (token.launchpad ?? "") !== padFilter) return false;
       const needle = query.trim().toLowerCase();
@@ -609,6 +640,7 @@ export default function App() {
     brain,
     metaList,
     radarList,
+    buyList,
     hotList,
     warmList,
     coolingList,
@@ -627,7 +659,8 @@ export default function App() {
         tab === "hot" ||
         tab === "warm" ||
         tab === "cooling" ||
-        tab === "radar"
+        tab === "radar" ||
+        tab === "buys"
           ? "keep"
           : sortMode,
         brain,
@@ -653,11 +686,14 @@ export default function App() {
     const loop = async () => {
       while (alive) {
         const bag = uniqueTokens(Object.values(quoteBagRef.current).flat());
+        const buyLeaders = pickBuyTape(bag)
+          .slice(0, 24)
+          .map((token) => token.id);
         const targets = selectQuoteTargets(
           bag,
           visibleIdsRef.current,
           openIdRef.current,
-          bagsRef.current.watch.map((token) => token.id),
+          [...bagsRef.current.watch.map((token) => token.id), ...buyLeaders],
         );
         if (targets.length === 0) {
           await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -886,7 +922,9 @@ export default function App() {
                       ? ` (${trending.length})`
                       : item.id === "hot"
                         ? ` (${hotList.length})`
-                        : item.id === "warm"
+                        : item.id === "buys"
+                          ? ` (${buyList.length})`
+                          : item.id === "warm"
                           ? ` (${warmList.length})`
                           : item.id === "cooling"
                             ? ` (${coolingList.length})`
@@ -1048,6 +1086,8 @@ export default function App() {
                   ? "Nothing has defined today's meta yet. Watch Trending — the coin that goes parabolic today becomes the bag we copy."
                   : tab === "hot"
                   ? "Nothing is hot right now. Check Warm or Fresh for earlier tells."
+                  : tab === "buys"
+                    ? "No buy tape yet. As Dex quotes tick, coins with the most buys in the last two minutes land here."
                   : tab === "warm"
                     ? "No coins are warming yet. Fresh launches show up next."
                     : tab === "cooling"
@@ -1136,6 +1176,10 @@ export default function App() {
                 <div>
                   <span>1h</span>
                   <b className={(opened.change1h ?? 0) < 0 ? "neg" : "pos"}>{pct(opened.change1h)}</b>
+                </div>
+                <div>
+                  <span>Buys 2m</span>
+                  {compactCount(opened.buys2m)}
                 </div>
                 <div>
                   <span>Buys 1h</span>
@@ -1344,6 +1388,7 @@ function pickTokens(
     brain: RunnerBrain;
     metaCoins: TrackedToken[];
     radarCoins: TrackedToken[];
+    buyCoins: TrackedToken[];
     hot: TrackedToken[];
     warm: TrackedToken[];
     cooling: TrackedToken[];
@@ -1355,6 +1400,7 @@ function pickTokens(
   if (tab === "learn") return bags.learn;
   if (tab === "meta") return bags.metaCoins;
   if (tab === "hot") return bags.hot;
+  if (tab === "buys") return bags.buyCoins;
   if (tab === "warm") return bags.warm;
   if (tab === "cooling") return bags.cooling;
   if (tab === "watch") return bags.watch;
@@ -1426,6 +1472,19 @@ function IntelChips({
   } else if ((stats?.creatorLaunches ?? 0) >= 3) {
     chips.push({ key: "serial", label: `${stats?.creatorLaunches} deploys`, tone: "warn" });
   }
+  if (stats?.tooBundled) {
+    chips.push({
+      key: "bundle",
+      label: `Bundled ${sharePct(stats.bundledPct)}`,
+      tone: "bad",
+    });
+  } else if ((stats?.bundleWallets ?? 0) >= 4) {
+    chips.push({
+      key: "bundle",
+      label: `Clustered ${sharePct(stats?.bundledPct)}`,
+      tone: "warn",
+    });
+  }
   if (stats?.top10Pct != null) {
     chips.push({
       key: "t10",
@@ -1457,7 +1516,15 @@ function IntelChips({
   if (token.boostAmount) chips.push({ key: "paid", label: "Paid", tone: "warn" });
   const xAge = twitterAgeChip(token.twitterJoinedAt);
   if (xAge) chips.push({ key: "xage", label: xAge, tone: "" });
-  if (token.buys5m) chips.push({ key: "buys", label: `${compactCount(token.buys5m)} buys 5m`, tone: "ok" });
+  if (token.buys2m || token.buys5m) {
+    chips.push({
+      key: "buys",
+      label: token.buys2m
+        ? `${compactCount(token.buys2m)} buys 2m`
+        : `${compactCount(token.buys5m)} buys 5m`,
+      tone: "ok",
+    });
+  }
   if (!chips.length && busy) chips.push({ key: "scan", label: "scanning…", tone: "" });
   if (!chips.length) return null;
   return (
@@ -1499,8 +1566,21 @@ function CoinIntel({
       tone: stats?.serialLauncher ? "bad" : "",
     },
     { label: "Top 10 H.", value: sharePct(stats?.top10Pct), tone: (stats?.top10Pct ?? 0) >= 30 ? "bad" : "" },
+    {
+      label: "Bundled",
+      value:
+        stats?.bundledPct != null
+          ? `${sharePct(stats.bundledPct)}${stats.bundleWallets ? ` · ${stats.bundleWallets} wallets` : ""}`
+          : "—",
+      tone: stats?.tooBundled ? "bad" : "",
+    },
     { label: "Insiders H.", value: sharePct(stats?.insiderPct), tone: (stats?.insiderPct ?? 0) >= 8 ? "warn" : "" },
     { label: "Holders", value: compactCount(stats?.holderCount), tone: "" },
+    {
+      label: "Buys 2m",
+      value: compactCount(token.buys2m ?? (token.buys5m != null ? Math.round(token.buys5m * 0.4) : undefined)),
+      tone: (token.buys2m ?? 0) >= 40 ? "ok" : "",
+    },
     {
       label: "Mint Auth.",
       value: authLabel(stats?.mintAuthority),
@@ -1544,8 +1624,8 @@ function CoinIntel({
         <p>
           {busy
             ? "Scanning holders, mint, freeze, and deployer history…"
-            : rug
-              ? `${rug.sources.join(" · ")}. Pulse / DS / serial deploys / unique buyers — the Axiom-style read from public tape.`
+              : rug
+              ? `${rug.sources.join(" · ")}. Pulse / DS / serial / bundled look / unique buyers — public-tape read, not a private Axiom indexer.`
               : "Auto-scans holders, mint/freeze, and this wallet's other deploys. Viewers are live pump.fun watchers."}
         </p>
       </div>
@@ -1743,6 +1823,12 @@ const TokenCard = memo(function TokenCard({
         <div>
           <span>Mcap</span>
           {compactUsd(token.marketCap)}
+        </div>
+        <div>
+          <span>2m buys</span>
+          <b className={token.buys2m || token.buys5m ? "pos" : ""}>
+            {compactCount(token.buys2m ?? (token.buys5m != null ? Math.round(token.buys5m * 0.4) : undefined))}
+          </b>
         </div>
         <div>
           <span>1h</span>

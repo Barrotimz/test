@@ -65,6 +65,7 @@ export type TrackedToken = {
   liquidity?: number;
   boostAmount?: number;
   buys5m?: number;
+  buys2m?: number;
   sells5m?: number;
   buys1h?: number;
   sells1h?: number;
@@ -116,6 +117,7 @@ export type TabId =
   | "trending"
   | "meta"
   | "hot"
+  | "buys"
   | "warm"
   | "launch"
   | "cooling"

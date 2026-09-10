@@ -151,6 +151,7 @@ img {
 
 .tabs button.heat-trending:not(.active),
 .tabs button.heat-hot:not(.active),
+.tabs button.heat-buys:not(.active),
 .tabs button.heat-meta:not(.active) {
   color: #ff8a4a;
 }

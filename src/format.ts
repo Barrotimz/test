@@ -125,7 +125,7 @@ export function twitterHandle(url?: string): string | undefined {
   const match = url.match(/(?:x\.com|twitter\.com)\/(?:@)?([A-Za-z0-9_]+)/i);
   if (!match) return undefined;
   const handle = match[1];
-  if (["i", "intent", "search", "home", "share"].includes(handle.toLowerCase())) {
+  if (["i", "intent", "search", "home", "share", "status", "statuses", "web", "compose"].includes(handle.toLowerCase())) {
     return undefined;
   }
   return handle;

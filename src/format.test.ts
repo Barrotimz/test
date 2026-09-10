@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { authLabel, coinAgeBucket, coinAgeLabel, padreTradeUrl, sharePct, toMillis, tweetInteractions } from "./format";
+import {
+  authLabel,
+  coinAgeBucket,
+  coinAgeLabel,
+  padreTradeUrl,
+  sharePct,
+  toMillis,
+  tweetInteractions,
+  twitterHandle,
+} from "./format";
 
 describe("tweetInteractions", () => {
   it("sums likes, RTs, replies, quotes, and bookmarks", () => {
@@ -45,6 +54,14 @@ describe("coin age", () => {
     expect(coinAgeBucket(now - 3 * 24 * 60 * 60_000, now)).toBe("recent");
     expect(coinAgeLabel(now - 80 * 24 * 60 * 60_000, now)).toBe("2mo old");
     expect(coinAgeBucket(now - 80 * 24 * 60 * 60_000, now)).toBe("aged");
+  });
+});
+
+describe("twitterHandle", () => {
+  it("keeps profile handles and skips bare /status paths", () => {
+    expect(twitterHandle("https://x.com/polymarket/status/1")).toBe("polymarket");
+    expect(twitterHandle("https://x.com/status/1")).toBeUndefined();
+    expect(twitterHandle("https://x.com/i/web/status/1")).toBeUndefined();
   });
 });
 

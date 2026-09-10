@@ -197,6 +197,13 @@ export function analyzeToken(token: TrackedToken, brain: RunnerBrain, rug?: RugR
   if (stats?.top10Pct != null && stats.top10Pct >= 35) {
     notes.push({ side: "against", text: `Top 10 wallets hold ${stats.top10Pct.toFixed(0)}% after dropping LP/curve` });
   }
+  if (stats?.tooBundled) {
+    score -= 14;
+    notes.push({
+      side: "against",
+      text: `Too bundled — ${stats.bundleWallets ?? "clone"} wallets hold ${stats.bundledPct?.toFixed(0) ?? "?"}% in matching bags`,
+    });
+  }
   const metaHit = matchingRipMeta(token, brain.lessons);
   if (metaHit) {
     score += 12;

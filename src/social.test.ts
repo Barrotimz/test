@@ -5,6 +5,7 @@ import {
   isTapeOpportunity,
   pickRadarTokens,
   pickTwitterUrl,
+  radarQuerySlice,
   radarSearchQueries,
 } from "./social";
 import type { TrackedToken } from "./types";
@@ -50,5 +51,27 @@ describe("twitter radar trail", () => {
     expect(isTapeOpportunity(plumber, now)).toBe(true);
     expect(pickRadarTokens([plumber, dead], now).map((row) => row.id)).toEqual(["solana:g8"]);
     expect(radarSearchQueries([plumber])).toEqual(expect.arrayContaining(["Plumber", "Polymarket"]));
+  });
+
+  it("picks a tweet url parked on a Dex website field over a bare handle", () => {
+    expect(
+      pickTwitterUrl(
+        [{ type: "twitter", url: "https://x.com/plumbercoin" }],
+        "https://x.com/polymarket/status/2097871648867172659",
+      ),
+    ).toContain("2097871648867172659");
+  });
+
+  it("mixes a status-url hunt, ticker, and CA into each Dex search slice", () => {
+    const now = Date.now();
+    const plumber = token({
+      change1h: 225,
+      volume1h: 637_000,
+      pairCreatedAt: now - 40 * 60_000,
+    });
+    const slice = radarQuerySlice([plumber], [], 0);
+    expect(slice.length).toBeLessThanOrEqual(4);
+    expect(slice.some((query) => query.includes("status"))).toBe(true);
+    expect(slice).toEqual(expect.arrayContaining([plumber.symbol, plumber.tokenAddress]));
   });
 });

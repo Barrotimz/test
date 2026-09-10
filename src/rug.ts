@@ -30,6 +30,9 @@ export type CoinStats = {
   creatorBestMcap?: number;
   serialLauncher?: boolean;
   deployPad?: string;
+  bundledPct?: number;
+  bundleWallets?: number;
+  tooBundled?: boolean;
 };
 
 export type RugReport = {
@@ -70,6 +73,9 @@ export type RugSignals = {
   creatorBestMcap?: number;
   serialLauncher?: boolean;
   deployPad?: string;
+  bundledPct?: number;
+  bundleWallets?: number;
+  tooBundled?: boolean;
 };
 
 export type HolderRow = {
@@ -101,11 +107,63 @@ function poolAddresses(known: Record<string, KnownAccount> = {}, markets: Market
   return pool;
 }
 
+function holderPct(row: HolderRow): number {
+  return row.pct ?? 0;
+}
+
+function packSum(rows: HolderRow[]): number {
+  return rows.reduce((sum, row) => sum + holderPct(row), 0);
+}
+
+function betterCluster(current: HolderRow[], candidate: HolderRow[]): HolderRow[] {
+  if (candidate.length > current.length) return candidate;
+  if (candidate.length === current.length && packSum(candidate) > packSum(current)) return candidate;
+  return current;
+}
+
+export function summarizeBundle(wallets: HolderRow[]): {
+  bundledPct?: number;
+  bundleWallets?: number;
+  tooBundled: boolean;
+} {
+  const pack = wallets
+    .filter((holder) => holderPct(holder) >= 0.35 && holderPct(holder) <= 15)
+    .sort((a, b) => holderPct(b) - holderPct(a));
+  let best: HolderRow[] = [];
+  for (let start = 0; start < pack.length; start += 1) {
+    const cluster = [pack[start]];
+    for (let next = start + 1; next < pack.length; next += 1) {
+      const pcts = [...cluster, pack[next]].map(holderPct);
+      const min = Math.min(...pcts);
+      const max = Math.max(...pcts);
+      if (min > 0 && max / min <= 1.35) cluster.push(pack[next]);
+    }
+    best = betterCluster(best, cluster);
+  }
+  const snipers = pack.filter((row) => holderPct(row) >= 0.5 && holderPct(row) <= 2.2);
+  if (snipers.length >= 8) best = betterCluster(best, snipers);
+  const clones = pack.filter((row) => holderPct(row) >= 1 && holderPct(row) <= 3.5);
+  if (clones.length >= 5) best = betterCluster(best, clones);
+  const bundledPct = best.length >= 4 ? packSum(best) : undefined;
+  return {
+    bundledPct,
+    bundleWallets: best.length >= 4 ? best.length : undefined,
+    tooBundled: Boolean(
+      (bundledPct != null && bundledPct >= 16) ||
+        (best.length >= 6 && (bundledPct ?? 0) >= 10) ||
+        (best.length >= 8 && (bundledPct ?? 0) >= 8),
+    ),
+  };
+}
+
 export function summarizeHolders(
   holders: HolderRow[] | undefined,
   known: Record<string, KnownAccount> = {},
   markets: MarketHint[] = [],
-): Pick<CoinStats, "top10Pct" | "topHolderPct" | "insiderPct" | "insiderCount"> {
+): Pick<
+  CoinStats,
+  "top10Pct" | "topHolderPct" | "insiderPct" | "insiderCount" | "bundledPct" | "bundleWallets" | "tooBundled"
+> {
   const pool = poolAddresses(known, markets);
   const isPool = (holder: HolderRow) =>
     Boolean(
@@ -117,11 +175,15 @@ export function summarizeHolders(
   const top10Pct = wallets.slice(0, 10).reduce((sum, holder) => sum + (holder.pct ?? 0), 0);
   const insiders = (holders ?? []).filter((holder) => holder.insider && holder.pct != null);
   const insiderPct = insiders.reduce((sum, holder) => sum + (holder.pct ?? 0), 0);
+  const bundle = summarizeBundle(wallets);
   return {
     top10Pct: wallets.length ? top10Pct : undefined,
     topHolderPct: wallets[0]?.pct,
     insiderPct: insiders.length ? insiderPct : undefined,
     insiderCount: insiders.length,
+    bundledPct: bundle.bundledPct,
+    bundleWallets: bundle.bundleWallets,
+    tooBundled: bundle.tooBundled || undefined,
   };
 }
 
@@ -372,6 +434,16 @@ export function scoreRugSignals(signals: RugSignals): RugReport {
     });
   }
 
+  if (signals.tooBundled) {
+    score += signals.bundledPct != null && signals.bundledPct >= 28 ? 18 : 12;
+    flags.push({
+      id: "bundle",
+      label: `Bundled look ${signals.bundledPct?.toFixed(0) ?? "?"}% · ${signals.bundleWallets ?? "?"} wallets`,
+      detail: "Clone-sized holder bags — the Axiom bundle tell, from the holder tape (not Jito traces).",
+      level: signals.bundledPct != null && signals.bundledPct >= 28 ? "fail" : "warn",
+    });
+  }
+
   for (const risk of signals.rugcheckRisks ?? []) {
     score += 12;
     flags.push({ id: `rc-${risk}`, label: risk, detail: "Reported by RugCheck.", level: "fail" });
@@ -418,6 +490,9 @@ export function scoreRugSignals(signals: RugSignals): RugReport {
       creatorBestMcap: signals.creatorBestMcap,
       serialLauncher: signals.serialLauncher,
       deployPad: signals.deployPad,
+      bundledPct: signals.bundledPct,
+      bundleWallets: signals.bundleWallets,
+      tooBundled: signals.tooBundled,
     },
     sources: [],
   };
@@ -493,7 +568,15 @@ function tokenSignals(token: TrackedToken): RugSignals {
 }
 
 function mergeSignals(...parts: RugSignals[]): RugSignals {
-  return Object.assign({}, ...parts);
+  const merged = Object.assign({}, ...parts);
+  const bundledPct = Math.max(0, ...parts.map((part) => part.bundledPct ?? 0)) || undefined;
+  const bundleWallets = Math.max(0, ...parts.map((part) => part.bundleWallets ?? 0)) || undefined;
+  return {
+    ...merged,
+    tooBundled: parts.some((part) => part.tooBundled) || undefined,
+    bundledPct,
+    bundleWallets,
+  };
 }
 
 function creatorShareFromReport(report: RugcheckReport): number | undefined {
@@ -556,6 +639,21 @@ function fromRugcheck(report: RugcheckReport): RugSignals {
     creatorBestMcap: tape.bestMcap,
     serialLauncher: tape.serialLauncher || undefined,
     deployPad: report.launchpad?.name || report.deployPlatform || undefined,
+    bundledPct: holders.bundledPct,
+    bundleWallets: holders.bundleWallets,
+    tooBundled: holders.tooBundled,
+  };
+}
+
+function bundleFromPercents(percents: (number | undefined)[]): Pick<RugSignals, "bundledPct" | "bundleWallets" | "tooBundled"> {
+  const rows: HolderRow[] = percents
+    .filter((pct): pct is number => pct != null)
+    .map((pct, index) => ({ owner: String(index), pct }));
+  const bundle = summarizeBundle(rows);
+  return {
+    bundledPct: bundle.bundledPct,
+    bundleWallets: bundle.bundleWallets,
+    tooBundled: bundle.tooBundled || undefined,
   };
 }
 
@@ -572,6 +670,7 @@ function fromGoplusSolana(data: GoplusSolana): RugSignals {
     top10Pct: wallets.length ? top10Pct : undefined,
     creatorPct: maybePct(data.creators?.[0]?.percent),
     transferFee: feeKeys.length > 0,
+    ...bundleFromPercents(wallets.map((holder) => asPct(holder.percent))),
   };
 }
 
@@ -592,6 +691,7 @@ function fromGoplusEvm(data: GoplusEvm): RugSignals {
     holderCount: data.holder_count ? Number(data.holder_count) : undefined,
     topHolderPct: asPct(top?.percent),
     top10Pct: wallets.length ? top10Pct : undefined,
+    ...bundleFromPercents(wallets.map((holder) => asPct(holder.percent))),
   };
 }
 

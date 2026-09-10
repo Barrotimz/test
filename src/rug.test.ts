@@ -19,6 +19,30 @@ describe("summarizeHolders", () => {
     expect(stats.insiderCount).toBe(2);
   });
 
+  it("flags clone-sized holder bags as too bundled", () => {
+    const stats = summarizeHolders([
+      { owner: "curve", pct: 80 },
+      { owner: "a", pct: 2.1 },
+      { owner: "b", pct: 2.0 },
+      { owner: "c", pct: 1.95 },
+      { owner: "d", pct: 1.9 },
+      { owner: "e", pct: 1.85 },
+      { owner: "f", pct: 1.8 },
+      { owner: "g", pct: 0.4 },
+    ]);
+    expect(stats.bundleWallets).toBeGreaterThanOrEqual(5);
+    expect(stats.bundledPct).toBeGreaterThan(10);
+    expect(stats.tooBundled).toBe(true);
+    const scored = scoreRugSignals({
+      mintAuthority: false,
+      freezeAuthority: false,
+      tooBundled: true,
+      bundledPct: stats.bundledPct,
+      bundleWallets: stats.bundleWallets,
+    });
+    expect(scored.flags.some((flag) => flag.id === "bundle")).toBe(true);
+  });
+
   it("treats a 70%+ bag as bonding-curve / LP, not a top-10 whale", () => {
     const stats = summarizeHolders([
       { owner: "curve", pct: 88, insider: false },
@@ -27,6 +51,7 @@ describe("summarizeHolders", () => {
     ]);
     expect(stats.topHolderPct).toBe(6);
     expect(stats.top10Pct).toBe(10);
+    expect(stats.tooBundled).toBeFalsy();
   });
 });
 

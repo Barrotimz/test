@@ -3,7 +3,7 @@ const EVM_RE = /\b0x[a-fA-F0-9]{40}\b/g;
 const TICKER_RE = /\$([A-Za-z][A-Za-z0-9]{1,14})/g;
 const HANDLE_RE = /(?:^|[^A-Za-z0-9_])@([A-Za-z0-9_]{2,15})\b/g;
 const TWEET_URL_RE =
-  /(?:https?:\/\/)?(?:www\.)?(?:x|twitter|vxtwitter|fxtwitter|fixupx|twittpr)\.com\/(?:[A-Za-z0-9_]+\/status(?:es)?|i\/web\/status)\/(\d+)/gi;
+  /(?:https?:\/\/)?(?:www\.|mobile\.)?(?:x|twitter|vxtwitter|fxtwitter|fixupx|twittpr)\.com\/(?:[A-Za-z0-9_]+\/status(?:es)?|i\/(?:web\/)?status|status)\/(\d+)/gi;
 
 const SOLANA_FALSE_POSITIVES = new Set([
   "11111111111111111111111111111111",

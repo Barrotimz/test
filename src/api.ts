@@ -53,7 +53,7 @@ export function pairToToken(pair: DexTokenPair, source: TrackedToken["source"]):
     sells1h: pair.txns?.h1?.sells,
     txns24h: txnSum(pair.txns?.h24),
     dexId: pair.dexId,
-    twitterUrl: pickTwitterUrl(socials),
+    twitterUrl: pickTwitterUrl(socials, ...(pair.info?.websites ?? []).map((site) => site.url)),
     telegramUrl: pickLink(socials, "telegram"),
     websiteUrl: pair.info?.websites?.[0]?.url,
     dexUrl: pair.url,
@@ -202,7 +202,11 @@ function mergeBoost(boost: DexBoost, pair?: DexTokenPair): TrackedToken {
   const links = [...(boost.links ?? []), ...(pair?.info?.socials ?? [])];
   const fromPair = pair ? pairToToken(pair, boost.amount != null ? "boost" : "profile") : undefined;
   const chainId = normalizeChain(boost.chainId);
-  const twitter = pickTwitterUrl(links, boost.description ?? undefined) ?? fromPair?.twitterUrl;
+  const twitter = pickTwitterUrl(
+    links,
+    boost.description ?? undefined,
+    ...(pair?.info?.websites ?? []).map((site) => site.url),
+  ) ?? fromPair?.twitterUrl;
   const tweetId = firstTweetId(twitter, boost.description ?? undefined, fromPair?.description, fromPair?.websiteUrl);
   return {
     ...fromPair,
@@ -552,14 +556,16 @@ export async function searchMany(queries: string[]): Promise<TrackedToken[]> {
 }
 
 export async function fillSocialsFromDex(tokens: TrackedToken[], limit = 80): Promise<TrackedToken[]> {
-  const need = tokens
-    .filter((token) => !hasXTrail(token))
-    .sort((a, b) => {
-      const vol = (b.volume5m ?? b.volume1h ?? 0) - (a.volume5m ?? a.volume1h ?? 0);
-      if (vol !== 0) return vol;
-      return (b.change1h ?? b.change5m ?? 0) - (a.change1h ?? a.change5m ?? 0);
-    })
-    .slice(0, limit);
+  const missingX = tokens.filter((token) => !hasXTrail(token));
+  const missingTweet = tokens.filter(
+    (token) =>
+      hasXTrail(token) && !firstTweetId(token.twitterUrl, token.tweetUrl, token.websiteUrl, token.description),
+  );
+  const rank = (token: TrackedToken) => (token.volume5m ?? token.volume1h ?? 0) + (token.change1h ?? token.change5m ?? 0);
+  const need = [...missingX.sort((a, b) => rank(b) - rank(a)), ...missingTweet.sort((a, b) => rank(b) - rank(a))].slice(
+    0,
+    limit,
+  );
   if (need.length === 0) return [];
   const byChain = new Map<string, TrackedToken[]>();
   for (const token of need) {

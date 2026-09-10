@@ -19,9 +19,10 @@ If you want sub-second tweet alerts into Telegram/Discord/bots:
 - **Today's meta** — reads **today's tape** (Gecko trending + 24h rips). The coin that went hardest *today* is the meta — not yesterday's leftover million-cap. Same-category names are listed beside it and searched on DexScreener. Example of the idea: if a computer-coin rips today, desk/keyboard names show up next to it.
 - **Trending** — GeckoTerminal trending pools, sorted by heat
 - **Hot / Warm** — cross-cut of every live bag: strongest reads, then coins that are only heating up
+- **Buys 2m** — coins with the most buys in the last two minutes. DexScreener only prints a rolling 5-minute buy count; the 10s quote tick samples it and estimates the 2-minute window. Highest buy count at the top.
 - **Fresh** — new pools and bonding coins (pump.fun, Bags, BNB / Four.meme, Robinhood, global Gecko). Filter by launchpad chip.
 - **Cooling** — dumps and trap-shaped prints so you can skip late candles
-- **Twitter radar** — wide net for tweet-driven rips. Pair tweet links, pump handles, Dex profiles, **and** new coins already printing volume (the Plumber shape) before the tweet is attached. Each cycle searches job/news names plus today's hottest tickers, backfills Dex pair socials (80 at a time), and pulls more pump / Gecko / Solana-Base-BNB new pools.
+- **Twitter radar** — hunts tweet-driven rips: Dex pair + website `x.com/status` links, pump handles, live Dex searches for status URLs, and CAs that are already ripping before the tweet is attached. Status IDs rank above a bare handle.
 - **Boosted** — tokens paying for visibility (attention, not quality)
 - **KOL watch** — local list of X handles with live `from:handle` search
 - **CA scanner** — paste a tweet, extract tickers / handles / Solana + EVM addresses, look them up
@@ -30,7 +31,7 @@ If you want sub-second tweet alerts into Telegram/Discord/bots:
   - Solana: [RugCheck](https://rugcheck.xyz) mint/freeze/LP lock + [GoPlus](https://gopluslabs.io) holders
   - EVM: GoPlus honeypot, tax, mint, creator bag, unverified source
   - Local pair stats: thin liquidity and brand-new pools
-- **Token data** — opening a coin auto-scans RugCheck/GoPlus the way Axiom / Photon / GMGN read a card: **top 10** (LP/curve stripped), **dev hold / DS**, **serial deploys** (prior coins from that wallet), insiders, mint/freeze, Pulse lane (new / final stretch / migrated), unique 1h traders vs wash tape, turnover, ATH drawdown, X account age, and pump.fun **live viewers**. We do not invent sniper/bundle % — that needs a private block indexer.
+- **Token data** — opening a coin auto-scans RugCheck/GoPlus: **top 10** (LP/curve stripped), **bundled look** (clone-sized holder bags — too bundled gets a red chip), **dev hold / DS**, **serial deploys**, insiders, mint/freeze, Pulse lane, unique 1h traders, turnover, ATH drawdown, X account age, and pump.fun **live viewers**. True Jito sniper/bundle traces need a private block indexer; we flag the holder-tape version instead.
 - **Tweet attraction** — launching coins with an X status link show **likes and total interactions** on the card (RTs + replies + quotes + bookmarks). You do not have to open Twitter. You can still paste an `x.com/.../status/ID` link in the CA scanner (`quiet` / `warming` / `hot` / `viral`)
 - **Token hype** — each card gets a market-attraction badge from 24h volume, 1h pump, Dex boosts, turnover, and tweet likes
 - **Filters** — last hour, still bonding, has X, has likes; sort hot→warm→fresh / newest / hottest / most likes / looks like a runner

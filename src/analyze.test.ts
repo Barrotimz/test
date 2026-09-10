@@ -141,6 +141,25 @@ describe("analyzeToken", () => {
     ]);
   });
 
+  it("penalizes too-bundled clone holder bags", () => {
+    const row = analyzeToken(
+      token({
+        id: "solana:bundle",
+        volume1h: 8_000,
+        pairCreatedAt: Date.now() - 20 * 60_000,
+      }),
+      emptyBrain(),
+      {
+        level: "caution",
+        score: 12,
+        flags: [],
+        stats: { tooBundled: true, bundleWallets: 8, bundledPct: 22 },
+        sources: ["RugCheck"],
+      },
+    );
+    expect(row.notes.some((note) => /too bundled/i.test(note.text))).toBe(true);
+  });
+
   it("indexes analysis once and groups heat lists from that map", () => {
     const brain = emptyBrain();
     const dump = token({
