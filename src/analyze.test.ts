@@ -102,6 +102,20 @@ describe("analyzeToken", () => {
     expect(lane).not.toBe("hot");
   });
 
+  it("counts concurrent livestream viewers as a plus", () => {
+    const live = analyzeToken(
+      token({
+        id: "solana:live",
+        livestream: true,
+        viewers: 74,
+        volume1h: 2_000,
+        pairCreatedAt: Date.now() - 20 * 60_000,
+      }),
+      emptyBrain(),
+    );
+    expect(live.notes.some((note) => /74 watching/.test(note.text))).toBe(true);
+  });
+
   it("puts a new empty launch in fresh and a dump in the cooling lane", () => {
     const brain = emptyBrain();
     const fresh = heatLane(

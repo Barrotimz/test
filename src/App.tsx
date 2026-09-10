@@ -8,6 +8,7 @@ import {
   fillSocialsFromDex,
   fetchPumpByMcap,
   fetchPumpHottest,
+  fetchPumpLive,
   fetchPumpNewest,
   hydrateBoosts,
   lookupAddresses,
@@ -39,6 +40,8 @@ import {
   liveSearchUrl,
   padreTradeUrl,
   pct,
+  sharePct,
+  authLabel,
   shortAddress,
   toMillis,
   tokenSearchQuery,
@@ -169,6 +172,11 @@ export default function App() {
   bagsRef.current = { launching, radar, boosts, trending, watch };
   const brainRef = useRef(brain);
   brainRef.current = brain;
+  const rugsRef = useRef(rugs);
+  rugsRef.current = rugs;
+  const openIdRef = useRef(openId);
+  openIdRef.current = openId;
+  const rugBusyRef = useRef(new Set<string>());
 
   const pendingLearn = useRef<TrackedToken[]>([]);
 
@@ -209,6 +217,37 @@ export default function App() {
       );
     },
     [patchToken],
+  );
+
+  const runRugCheck = useCallback(async (token: TrackedToken) => {
+    if (rugBusyRef.current.has(token.id)) return;
+    rugBusyRef.current.add(token.id);
+    setRugBusy((current) => ({ ...current, [token.id]: true }));
+    setRugError((current) => {
+      const next = { ...current };
+      delete next[token.id];
+      return next;
+    });
+    try {
+      const report = await checkTokenRug(token);
+      setRugs((current) => ({ ...current, [token.id]: report }));
+    } catch (err) {
+      setRugError((current) => ({
+        ...current,
+        [token.id]: err instanceof Error ? err.message : "Rug check failed",
+      }));
+    } finally {
+      rugBusyRef.current.delete(token.id);
+      setRugBusy((current) => ({ ...current, [token.id]: false }));
+    }
+  }, []);
+
+  const ensureRugCheck = useCallback(
+    async (token: TrackedToken) => {
+      if (rugsRef.current[token.id] || rugBusyRef.current.has(token.id)) return;
+      await runRugCheck(token);
+    },
+    [runRugCheck],
   );
 
   const ingest = useCallback((incoming: TrackedToken[], setter: (fn: (prev: TrackedToken[]) => TrackedToken[]) => void) => {
@@ -257,6 +296,14 @@ export default function App() {
         );
       }
       jobs.push(fetchPumpNewest(64).then((rows) => ingest(rows, setLaunching)).catch(() => undefined));
+      jobs.push(
+        fetchPumpLive(48)
+          .then((rows) => {
+            ingest(rows, setLaunching);
+            ingest(rows, setRadar);
+          })
+          .catch(() => undefined),
+      );
       if (tick % 2 === 1) {
         jobs.push(fetchBagsLaunches().then((rows) => ingest(rows, setLaunching)).catch(() => undefined));
       }
@@ -368,6 +415,15 @@ export default function App() {
           .sort((a, b) => socialPriority(a) - socialPriority(b))
           .slice(0, SOCIAL_BATCH);
         await pullTweetStats(need);
+        const openToken = openIdRef.current
+          ? bag.find((token) => token.id === openIdRef.current)
+          : undefined;
+        if (openToken) await ensureRugCheck(openToken);
+        const nextScan = uniqueTokens(bag)
+          .filter((token) => !rugsRef.current[token.id] && !rugBusyRef.current.has(token.id))
+          .sort((a, b) => (b.volume5m ?? b.volume1h ?? 0) - (a.volume5m ?? a.volume1h ?? 0))
+          .slice(0, 1);
+        for (const token of nextScan) await ensureRugCheck(token);
         await new Promise((resolve) => setTimeout(resolve, SOCIAL_MS));
       }
     };
@@ -375,7 +431,7 @@ export default function App() {
     return () => {
       alive = false;
     };
-  }, [pullTweetStats]);
+  }, [pullTweetStats, ensureRugCheck]);
 
   useEffect(() => {
     localStorage.setItem(WATCH_KEY, JSON.stringify(watch));
@@ -413,26 +469,6 @@ export default function App() {
       const exists = current.some((item) => item.id === token.id);
       return exists ? current.filter((item) => item.id !== token.id) : [token, ...current];
     });
-  }, []);
-
-  const runRugCheck = useCallback(async (token: TrackedToken) => {
-    setRugBusy((current) => ({ ...current, [token.id]: true }));
-    setRugError((current) => {
-      const next = { ...current };
-      delete next[token.id];
-      return next;
-    });
-    try {
-      const report = await checkTokenRug(token);
-      setRugs((current) => ({ ...current, [token.id]: report }));
-    } catch (err) {
-      setRugError((current) => ({
-        ...current,
-        [token.id]: err instanceof Error ? err.message : "Rug check failed",
-      }));
-    } finally {
-      setRugBusy((current) => ({ ...current, [token.id]: false }));
-    }
   }, []);
 
   async function scanContracts() {
@@ -573,6 +609,11 @@ export default function App() {
     allLive.find((token) => token.id === openId) ??
     watch.find((token) => token.id === openId) ??
     scanned.find((token) => token.id === openId);
+
+  useEffect(() => {
+    if (!opened) return;
+    void ensureRugCheck(opened);
+  }, [opened, ensureRugCheck]);
 
   return (
     <div className="app">
@@ -983,7 +1024,9 @@ export default function App() {
                 {opened.name} · {chainLabel(opened.chainId)}
                 {opened.launchpad ? ` · ${opened.launchpad}` : ""} · {opened.stage ?? "live"} ·{" "}
                 {coinAgeLabel(opened.pairCreatedAt)}
+                {opened.livestream ? ` · LIVE ${compactCount(opened.viewers ?? 0)} watching` : ""}
               </p>
+              <CoinIntel token={opened} rug={rugs[opened.id]} busy={Boolean(rugBusy[opened.id])} />
               <div className="metrics">
                 <div>
                   <span>Price</span>
@@ -1153,7 +1196,7 @@ export default function App() {
           )}
           <h2 style={{ marginTop: 22 }}>Last rug checks</h2>
           {Object.keys(rugs).length === 0 ? (
-            <p>Run Rug check on a card. Solana uses RugCheck + GoPlus; EVM uses GoPlus.</p>
+            <p>Open a coin — we auto-scan holders, mint, and freeze. You can still tap Rug to refresh.</p>
           ) : (
             visible
               .filter((token) => rugs[token.id])
@@ -1279,6 +1322,129 @@ function sortTokens(
     copy.sort((a, b) => scoreTokenHype(b).score - scoreTokenHype(a).score);
   }
   return copy;
+}
+
+function IntelChips({
+  token,
+  rug,
+  busy,
+}: {
+  token: TrackedToken;
+  rug?: RugReport;
+  busy?: boolean;
+}) {
+  const stats = rug?.stats;
+  const chips: { key: string; label: string; tone: string }[] = [];
+  if (token.livestream || (token.viewers ?? 0) > 0) {
+    chips.push({ key: "live", label: `LIVE ${compactCount(token.viewers ?? 0)}`, tone: "live" });
+  }
+  if (stats?.top10Pct != null) {
+    chips.push({
+      key: "t10",
+      label: `Top10 ${sharePct(stats.top10Pct)}`,
+      tone: stats.top10Pct >= 30 ? "bad" : "ok",
+    });
+  }
+  if (stats?.insiderPct != null) {
+    chips.push({
+      key: "ins",
+      label: `Insd ${sharePct(stats.insiderPct)}`,
+      tone: stats.insiderPct >= 8 ? "warn" : "ok",
+    });
+  }
+  if (stats?.mintAuthority != null) {
+    chips.push({
+      key: "mint",
+      label: stats.mintAuthority ? "Mint" : "Mint no",
+      tone: stats.mintAuthority ? "bad" : "ok",
+    });
+  }
+  if (stats?.freezeAuthority != null) {
+    chips.push({
+      key: "frz",
+      label: stats.freezeAuthority ? "Freeze" : "Freeze no",
+      tone: stats.freezeAuthority ? "bad" : "ok",
+    });
+  }
+  if (token.boostAmount) chips.push({ key: "paid", label: "Paid", tone: "warn" });
+  if (token.buys5m) chips.push({ key: "buys", label: `${compactCount(token.buys5m)} buys 5m`, tone: "ok" });
+  if (!chips.length && busy) chips.push({ key: "scan", label: "scanning…", tone: "" });
+  if (!chips.length) return null;
+  return (
+    <div className="intel-chips">
+      {chips.map((chip) => (
+        <span key={chip.key} className={`intel-chip ${chip.tone}`}>
+          {chip.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function CoinIntel({
+  token,
+  rug,
+  busy,
+}: {
+  token: TrackedToken;
+  rug?: RugReport;
+  busy?: boolean;
+}) {
+  const stats = rug?.stats;
+  const cells = [
+    { label: "Top 10 H.", value: sharePct(stats?.top10Pct), tone: (stats?.top10Pct ?? 0) >= 30 ? "bad" : "" },
+    { label: "Insiders H.", value: sharePct(stats?.insiderPct), tone: (stats?.insiderPct ?? 0) >= 8 ? "warn" : "" },
+    { label: "Holders", value: compactCount(stats?.holderCount), tone: "" },
+    {
+      label: "Mint Auth.",
+      value: authLabel(stats?.mintAuthority),
+      tone: stats?.mintAuthority ? "bad" : stats?.mintAuthority === false ? "ok" : "",
+    },
+    {
+      label: "Freeze Auth.",
+      value: authLabel(stats?.freezeAuthority),
+      tone: stats?.freezeAuthority ? "bad" : stats?.freezeAuthority === false ? "ok" : "",
+    },
+    { label: "LP locked", value: sharePct(stats?.lpLockedPct), tone: (stats?.lpLockedPct ?? 0) >= 90 ? "ok" : "" },
+    {
+      label: "Viewers",
+      value: token.livestream || token.viewers != null ? compactCount(token.viewers ?? 0) : "—",
+      tone: token.livestream ? "live" : "",
+      hint: token.livestreamTitle,
+    },
+    { label: "Pump replies", value: compactCount(token.replies), tone: "" },
+    { label: "5m buys", value: compactCount(token.buys5m), tone: "" },
+    { label: "1h buyers", value: compactCount(token.buyers1h), tone: "" },
+    { label: "1h vol", value: compactUsd(token.volume1h), tone: "" },
+    {
+      label: "Boosts",
+      value: token.boostAmount ? compactCount(token.boostAmount) : "No",
+      tone: token.boostAmount ? "warn" : "",
+    },
+  ];
+  return (
+    <div className="coin-intel">
+      <div className="coin-intel-head">
+        <h3>Token data & security</h3>
+        <p>
+          {busy
+            ? "Scanning holders, mint, and freeze…"
+            : rug
+              ? `${rug.sources.join(" · ")}. Live viewers come from pump.fun streams.`
+              : "Auto-scans holders and mint/freeze. Viewer count is concurrent pump.fun livestream watchers."}
+        </p>
+      </div>
+      <div className="intel-grid">
+        {cells.map((cell) => (
+          <div key={cell.label} className={`intel-cell ${cell.tone}`} title={cell.hint}>
+            <span>{cell.label}</span>
+            <strong>{cell.value}</strong>
+            {cell.hint ? <em>{cell.hint}</em> : null}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function TradeButtons({ token }: { token: TrackedToken }) {
@@ -1443,7 +1609,7 @@ const TokenCard = memo(function TokenCard({
           <div className="sub">
             {token.name} · {chainLabel(token.chainId)}
             {token.launchpad ? ` · ${token.launchpad}` : ""}
-            {token.livestream ? " · LIVE" : ""}
+            {token.livestream ? ` · LIVE ${compactCount(token.viewers ?? 0)}` : ""}
           </div>
         </div>
         <span className={`badge ${analysis.heat}`}>{analysis.heat}</span>
@@ -1454,6 +1620,7 @@ const TokenCard = memo(function TokenCard({
         )}
         {rug && <span className={`badge ${rug.level}`}>{rug.level}</span>}
       </div>
+      <IntelChips token={token} rug={rug} busy={rugBusy} />
       <AnalysisPanel analysis={analysis} compact />
       <TweetPulse token={token} compact />
       <div className="metrics">

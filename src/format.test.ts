@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { coinAgeBucket, coinAgeLabel, padreTradeUrl, toMillis, tweetInteractions } from "./format";
+import { authLabel, coinAgeBucket, coinAgeLabel, padreTradeUrl, sharePct, toMillis, tweetInteractions } from "./format";
 
 describe("tweetInteractions", () => {
   it("sums likes, RTs, replies, quotes, and bookmarks", () => {
@@ -45,5 +45,16 @@ describe("coin age", () => {
     expect(coinAgeBucket(now - 3 * 24 * 60 * 60_000, now)).toBe("recent");
     expect(coinAgeLabel(now - 80 * 24 * 60 * 60_000, now)).toBe("2mo old");
     expect(coinAgeBucket(now - 80 * 24 * 60 * 60_000, now)).toBe("aged");
+  });
+});
+
+describe("sharePct", () => {
+  it("formats holder shares without a plus sign", () => {
+    expect(sharePct(23.4)).toBe("23%");
+    expect(sharePct(3.2)).toBe("3.2%");
+    expect(sharePct(undefined)).toBe("—");
+    expect(authLabel(true)).toBe("Yes");
+    expect(authLabel(false)).toBe("No");
+    expect(authLabel(null)).toBe("—");
   });
 });

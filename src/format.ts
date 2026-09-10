@@ -31,6 +31,17 @@ export function compactCount(value?: number | null): string {
   return `${Math.round(value)}`;
 }
 
+export function sharePct(value?: number | null): string {
+  if (value == null || Number.isNaN(value)) return "—";
+  return `${value >= 10 ? Math.round(value) : value.toFixed(1)}%`;
+}
+
+export function authLabel(value?: boolean | null): string {
+  if (value === true) return "Yes";
+  if (value === false) return "No";
+  return "—";
+}
+
 export function compactPrice(value?: number): string {
   if (value == null || Number.isNaN(value)) return "—";
   if (value >= 1) return `$${value.toFixed(3)}`;

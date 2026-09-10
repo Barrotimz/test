@@ -30,6 +30,7 @@ If you want sub-second tweet alerts into Telegram/Discord/bots:
   - Solana: [RugCheck](https://rugcheck.xyz) mint/freeze/LP lock + [GoPlus](https://gopluslabs.io) holders
   - EVM: GoPlus honeypot, tax, mint, creator bag, unverified source
   - Local pair stats: thin liquidity and brand-new pools
+- **Token data** — opening a coin auto-scans RugCheck/GoPlus for **top 10 holders**, **insiders**, **mint/freeze authority**, holder count, and LP lock. Cards show a compact chip row (LIVE viewers, Top10, Insd, Mint/Freeze, Paid). Pump.fun livestreams show **concurrent viewers**.
 - **Tweet attraction** — launching coins with an X status link show **likes and total interactions** on the card (RTs + replies + quotes + bookmarks). You do not have to open Twitter. You can still paste an `x.com/.../status/ID` link in the CA scanner (`quiet` / `warming` / `hot` / `viral`)
 - **Token hype** — each card gets a market-attraction badge from 24h volume, 1h pump, Dex boosts, turnover, and tweet likes
 - **Filters** — last hour, still bonding, has X, has likes; sort hot→warm→fresh / newest / hottest / most likes / looks like a runner

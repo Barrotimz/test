@@ -131,9 +131,15 @@ export function analyzeToken(token: TrackedToken, brain: RunnerBrain, rug?: RugR
     score -= 10;
     notes.push({ side: "against", text: "Parabolic on a brand-new thin pool — often the exit, not the entry" });
   }
-  if (token.livestream && (vol1 >= 500 || likes >= 10)) {
-    score += 6;
-    notes.push({ side: "for", text: "Livestream is on — attention is happening now" });
+  if (token.livestream && (vol1 >= 500 || likes >= 10 || (token.viewers ?? 0) >= 3)) {
+    score += token.viewers && token.viewers >= 20 ? 10 : 6;
+    notes.push({
+      side: "for",
+      text:
+        token.viewers != null
+          ? `Livestream is on · ${token.viewers} watching now`
+          : "Livestream is on — attention is happening now",
+    });
   }
   if (token.kingOfHill) {
     score += 6;

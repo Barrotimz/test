@@ -46,6 +46,8 @@ export function pairToToken(pair: DexTokenPair, source: TrackedToken["source"]):
     change24h: pair.priceChange?.h24,
     liquidity: pair.liquidity?.usd,
     boostAmount: pair.boosts?.active,
+    buys5m: pair.txns?.m5?.buys,
+    sells5m: pair.txns?.m5?.sells,
     buys1h: pair.txns?.h1?.buys,
     sells1h: pair.txns?.h1?.sells,
     txns24h: txnSum(pair.txns?.h24),
@@ -306,6 +308,8 @@ type PumpCoin = {
   market_cap_usd?: number;
   reply_count?: number;
   is_currently_live?: boolean;
+  num_participants?: number;
+  livestream_title?: string;
   real_sol_reserves?: number;
   username?: string;
   creator?: string;
@@ -347,6 +351,8 @@ function pumpToToken(coin: PumpCoin): TrackedToken {
     replies: coin.reply_count,
     bondingPct: coin.complete ? 100 : bondingPct(coin.real_sol_reserves),
     livestream: coin.is_currently_live,
+    livestreamTitle: coin.livestream_title || undefined,
+    viewers: coin.is_currently_live ? coin.num_participants ?? 0 : coin.num_participants,
     creator: coin.creator,
     username: coin.username,
     nsfw: coin.nsfw,
@@ -369,6 +375,13 @@ export async function fetchPumpByMcap(limit = 16): Promise<TrackedToken[]> {
 export async function fetchPumpNewest(limit = 40): Promise<TrackedToken[]> {
   const coins = await getJson<PumpCoin[]>(
     `${PUMP}/coins?offset=0&limit=${limit}&sort=created_timestamp&order=DESC&includeNsfw=false`,
+  );
+  return coins.map(pumpToToken);
+}
+
+export async function fetchPumpLive(limit = 48): Promise<TrackedToken[]> {
+  const coins = await getJson<PumpCoin[]>(
+    `${PUMP}/coins/currently-live?offset=0&limit=${limit}&includeNsfw=false`,
   );
   return coins.map(pumpToToken);
 }

@@ -81,6 +81,8 @@ export type TrackedToken = {
   replies?: number;
   bondingPct?: number;
   livestream?: boolean;
+  livestreamTitle?: string;
+  viewers?: number;
   creator?: string;
   username?: string;
   kingOfHill?: boolean;

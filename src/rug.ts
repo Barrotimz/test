@@ -13,12 +13,25 @@ export type RugFlag = {
   level: FlagLevel;
 };
 
+export type CoinStats = {
+  mintAuthority?: boolean | null;
+  freezeAuthority?: boolean | null;
+  holderCount?: number;
+  top10Pct?: number;
+  topHolderPct?: number;
+  insiderPct?: number;
+  insiderCount?: number;
+  creatorPct?: number;
+  lpLockedPct?: number;
+};
+
 export type RugReport = {
   level: RiskLevel;
   score: number;
   flags: RugFlag[];
   holders?: number;
   lpLockedPct?: number;
+  stats: CoinStats;
   sources: string[];
 };
 
@@ -34,6 +47,8 @@ export type RugSignals = {
   liquidityUsd?: number;
   pairAgeMs?: number;
   topHolderPct?: number;
+  top10Pct?: number;
+  insiderPct?: number;
   creatorPct?: number;
   holderCount?: number;
   openSource?: boolean | null;
@@ -43,6 +58,61 @@ export type RugSignals = {
   rugcheckScore?: number;
   rugcheckRisks?: string[];
 };
+
+export type HolderRow = {
+  address?: string;
+  owner?: string;
+  pct?: number;
+  insider?: boolean;
+};
+
+export type KnownAccount = { type?: string; name?: string };
+
+export type MarketHint = {
+  pubkey?: string;
+  liquidityA?: string;
+  liquidityB?: string;
+  mintLP?: string;
+};
+
+function poolAddresses(known: Record<string, KnownAccount> = {}, markets: MarketHint[] = []): Set<string> {
+  const pool = new Set<string>();
+  for (const [key, meta] of Object.entries(known)) {
+    if (meta.type === "AMM" || meta.type === "LOCKER" || meta.type === "PROGRAM") pool.add(key);
+  }
+  for (const market of markets) {
+    for (const key of [market.pubkey, market.liquidityA, market.liquidityB, market.mintLP]) {
+      if (key) pool.add(key);
+    }
+  }
+  return pool;
+}
+
+export function summarizeHolders(
+  holders: HolderRow[] | undefined,
+  known: Record<string, KnownAccount> = {},
+  markets: MarketHint[] = [],
+): Pick<CoinStats, "top10Pct" | "topHolderPct" | "insiderPct" | "insiderCount"> {
+  const pool = poolAddresses(known, markets);
+  const isPool = (holder: HolderRow) =>
+    Boolean((holder.owner && pool.has(holder.owner)) || (holder.address && pool.has(holder.address)));
+  const wallets = (holders ?? []).filter((holder) => holder.pct != null && !isPool(holder));
+  const top10Pct = wallets.slice(0, 10).reduce((sum, holder) => sum + (holder.pct ?? 0), 0);
+  const insiders = (holders ?? []).filter((holder) => holder.insider && holder.pct != null);
+  const insiderPct = insiders.reduce((sum, holder) => sum + (holder.pct ?? 0), 0);
+  return {
+    top10Pct: wallets.length ? top10Pct : undefined,
+    topHolderPct: wallets[0]?.pct,
+    insiderPct: insiders.length ? insiderPct : undefined,
+    insiderCount: insiders.length,
+  };
+}
+
+function maybePct(value?: number | string | null): number | undefined {
+  const pct = asPct(value);
+  if (pct == null || pct < 0 || pct > 100) return undefined;
+  return pct;
+}
 
 const GOPLUS_CHAIN: Record<string, string> = {
   ethereum: "1",
@@ -208,6 +278,26 @@ export function scoreRugSignals(signals: RugSignals): RugReport {
     });
   }
 
+  if (signals.top10Pct != null && signals.top10Pct >= 40) {
+    score += 10;
+    flags.push({
+      id: "top10",
+      label: `Top 10 hold ${signals.top10Pct.toFixed(0)}%`,
+      detail: "Holder concentration is tight even after excluding LP.",
+      level: "warn",
+    });
+  }
+
+  if (signals.insiderPct != null && signals.insiderPct >= 8) {
+    score += 10;
+    flags.push({
+      id: "insider-bag",
+      label: `Insiders hold ${signals.insiderPct.toFixed(0)}%`,
+      detail: "Linked wallets still sit on a meaningful bag.",
+      level: "warn",
+    });
+  }
+
   if (signals.creatorPct != null && signals.creatorPct >= 8) {
     score += 14;
     flags.push({
@@ -268,6 +358,17 @@ export function scoreRugSignals(signals: RugSignals): RugReport {
     flags,
     holders: signals.holderCount,
     lpLockedPct: signals.lpLockedPct,
+    stats: {
+      mintAuthority: signals.mintAuthority,
+      freezeAuthority: signals.freezeAuthority,
+      holderCount: signals.holderCount,
+      top10Pct: signals.top10Pct,
+      topHolderPct: signals.topHolderPct,
+      insiderPct: signals.insiderPct,
+      insiderCount: signals.insiderClusters,
+      creatorPct: signals.creatorPct,
+      lpLockedPct: signals.lpLockedPct,
+    },
     sources: [],
   };
 }
@@ -283,10 +384,17 @@ type RugcheckReport = {
   totalHolders?: number;
   totalMarketLiquidity?: number;
   graphInsidersDetected?: number;
-  markets?: { lp?: { lpLockedPct?: number } }[];
+  markets?: {
+    pubkey?: string;
+    liquidityA?: string;
+    liquidityB?: string;
+    mintLP?: string;
+    lp?: { lpLockedPct?: number };
+  }[];
   token_extensions?: { transferFeeConfig?: unknown; pausableConfig?: unknown };
   topHolders?: { owner?: string; address?: string; pct?: number; insider?: boolean }[];
   knownAccounts?: Record<string, { type?: string }>;
+  creatorBalance?: number | { pct?: number } | null;
 };
 
 type GoplusSolana = {
@@ -340,11 +448,9 @@ function fromRugcheck(report: RugcheckReport): RugSignals {
   const lpLockedPct = report.markets
     ?.map((market) => market.lp?.lpLockedPct ?? 0)
     .reduce((best, value) => Math.max(best, value), 0);
-  const top = report.topHolders?.find((holder) => {
-    const key = holder.owner ?? holder.address ?? "";
-    const kind = report.knownAccounts?.[key]?.type;
-    return !holder.insider && kind !== "AMM" && kind !== "LOCKER";
-  });
+  const holders = summarizeHolders(report.topHolders, report.knownAccounts, report.markets);
+  const creatorRaw =
+    typeof report.creatorBalance === "number" ? report.creatorBalance : report.creatorBalance?.pct;
   return {
     rugged: report.rugged,
     mintAuthority: (report.mintAuthority ?? report.token?.mintAuthority ?? null) != null,
@@ -352,32 +458,40 @@ function fromRugcheck(report: RugcheckReport): RugSignals {
     holderCount: report.totalHolders,
     liquidityUsd: report.totalMarketLiquidity,
     lpLockedPct: lpLockedPct || undefined,
-    insiderClusters: report.graphInsidersDetected,
+    insiderClusters: Math.max(report.graphInsidersDetected ?? 0, holders.insiderCount ?? 0) || undefined,
     transferFee: Boolean(report.token_extensions?.transferFeeConfig),
     pausable: Boolean(report.token_extensions?.pausableConfig),
     rugcheckScore: report.score_normalised ?? report.score,
     rugcheckRisks: risks.filter(Boolean),
-    topHolderPct: top?.pct,
+    topHolderPct: holders.topHolderPct,
+    top10Pct: holders.top10Pct,
+    insiderPct: holders.insiderPct,
+    creatorPct: maybePct(creatorRaw),
   };
 }
 
 function fromGoplusSolana(data: GoplusSolana): RugSignals {
-  const top = data.holders?.find((holder) => !/amm|pool|raydium|pump/i.test(holder.tag ?? ""));
+  const wallets = (data.holders ?? []).filter((holder) => !/amm|pool|raydium|pump/i.test(holder.tag ?? ""));
+  const top = wallets[0];
+  const top10Pct = wallets.slice(0, 10).reduce((sum, holder) => sum + (asPct(holder.percent) ?? 0), 0);
   const feeKeys = Object.keys(data.transfer_fee ?? {});
   return {
     mintAuthority: data.mintable ? data.mintable.status !== "0" : undefined,
     freezeAuthority: data.freezable ? data.freezable.status !== "0" : undefined,
     holderCount: data.holder_count ? Number(data.holder_count) : undefined,
     topHolderPct: asPct(top?.percent),
-    creatorPct: asPct(data.creators?.[0]?.percent),
+    top10Pct: wallets.length ? top10Pct : undefined,
+    creatorPct: maybePct(data.creators?.[0]?.percent),
     transferFee: feeKeys.length > 0,
   };
 }
 
 function fromGoplusEvm(data: GoplusEvm): RugSignals {
-  const top = data.holders?.find(
+  const wallets = (data.holders ?? []).filter(
     (holder) => holder.is_locked !== 1 && holder.is_contract !== 1 && !/uniswap|pool|lp/i.test(holder.tag ?? ""),
   );
+  const top = wallets[0];
+  const top10Pct = wallets.slice(0, 10).reduce((sum, holder) => sum + (asPct(holder.percent) ?? 0), 0);
   return {
     honeypot: truthy(data.is_honeypot) || truthy(data.cannot_buy),
     cannotSell: truthy(data.cannot_sell_all),
@@ -385,9 +499,10 @@ function fromGoplusEvm(data: GoplusEvm): RugSignals {
     sellTaxPct: asPct(data.sell_tax),
     mintAuthority: data.is_mintable ? truthy(data.is_mintable) : undefined,
     openSource: data.is_open_source ? data.is_open_source === "1" : undefined,
-    creatorPct: asPct(data.creator_percent),
+    creatorPct: maybePct(data.creator_percent),
     holderCount: data.holder_count ? Number(data.holder_count) : undefined,
     topHolderPct: asPct(top?.percent),
+    top10Pct: wallets.length ? top10Pct : undefined,
   };
 }
 
