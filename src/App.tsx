@@ -302,15 +302,16 @@ export default function App() {
   );
 
   const ingest = useCallback((incoming: TrackedToken[], setter: (fn: (prev: TrackedToken[]) => TrackedToken[]) => void) => {
-    if (incoming.length === 0) return;
-    const fresh = eventsForNew(incoming, knownIds.current);
-    for (const token of incoming) knownIds.current.add(token.id);
+    const rows = uniqueTokens(incoming);
+    if (rows.length === 0) return;
+    const fresh = eventsForNew(rows, knownIds.current);
+    for (const token of rows) knownIds.current.add(token.id);
     if (fresh.length) {
       setEvents((prev) => pushEvents(prev, fresh));
       setSeen((count) => count + fresh.length);
     }
-    setter((prev) => mergeLists(prev, incoming));
-    pendingLearn.current.push(...incoming);
+    setter((prev) => mergeLists(prev, rows));
+    pendingLearn.current.push(...rows);
   }, []);
 
   const refresh = useCallback(async () => {
@@ -659,7 +660,7 @@ export default function App() {
       ),
     [filtered, tab, sortMode, brain, analysisOf],
   );
-  const visible = ranked.slice(0, BOARD_LIMIT);
+  const visible = uniqueTokens(ranked).slice(0, BOARD_LIMIT);
   visibleIdsRef.current = visible.map((token) => token.id);
   const opened =
     allLive.find((token) => token.id === openId) ??

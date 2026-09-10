@@ -46,6 +46,11 @@ describe("mergeLists", () => {
     const events = eventsForNew([token("a"), token("a"), token("a")], new Set());
     expect(events).toHaveLength(1);
   });
+
+  it("does not emit two tape chips for the same mint in one batch", () => {
+    const events = eventsForNew([token("dup", { symbol: "DUP" }), token("dup", { symbol: "DUP" })], new Set());
+    expect(events).toHaveLength(1);
+  });
 });
 
 describe("pushEvents", () => {
