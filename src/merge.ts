@@ -49,8 +49,13 @@ export function mergeLists(prev: TrackedToken[], incoming: TrackedToken[], cap =
 }
 
 export function eventsForNew(incoming: TrackedToken[], known: Set<string>, at = Date.now()): FeedEvent[] {
+  const seen = new Set<string>();
   return incoming
-    .filter((token) => !known.has(token.id))
+    .filter((token) => {
+      if (known.has(token.id) || seen.has(token.id)) return false;
+      seen.add(token.id);
+      return true;
+    })
     .slice(0, 12)
     .map((token) => ({
       id: `${token.id}:${at}`,
