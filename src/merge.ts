@@ -48,15 +48,37 @@ export function mergeLists(prev: TrackedToken[], incoming: TrackedToken[], cap =
   return merged.slice(0, cap);
 }
 
+export const TAPE_CAP = 24;
+
 export function eventsForNew(incoming: TrackedToken[], known: Set<string>, at = Date.now()): FeedEvent[] {
+  /** A single poll can carry one mint twice (Gecko prints a row per pool), and two events
+   *  sharing an id would collide as React keys, so the batch dedupes against itself too. */
+  const batch = new Set<string>();
   return incoming
-    .filter((token) => !known.has(token.id))
+    .filter((token) => {
+      if (known.has(token.id) || batch.has(token.id)) return false;
+      batch.add(token.id);
+      return true;
+    })
     .slice(0, 12)
     .map((token) => ({
       id: `${token.id}:${at}`,
       at,
       text: `${token.stage === "launching" ? "LAUNCH" : "NEW"} $${token.symbol} · ${token.chainId}`,
     }));
+}
+
+/** Prepend to the tape, dropping ids already on it so every chip keeps a unique React key. */
+export function pushEvents(prev: FeedEvent[], fresh: FeedEvent[], cap = TAPE_CAP): FeedEvent[] {
+  if (fresh.length === 0) return prev;
+  const seen = new Set(prev.map((event) => event.id));
+  const added = fresh.filter((event) => {
+    if (seen.has(event.id)) return false;
+    seen.add(event.id);
+    return true;
+  });
+  if (added.length === 0) return prev;
+  return [...added, ...prev].slice(0, cap);
 }
 
 /** Walk a list in pages so Dex hydrates rotate instead of always hitting the same 80 hottest. */

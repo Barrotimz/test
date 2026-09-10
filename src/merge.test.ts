@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { bondingPct } from "./api";
-import { eventsForNew, mergeLists, overlayLive, rotateSlice } from "./merge";
-import type { TrackedToken } from "./types";
+import { eventsForNew, mergeLists, overlayLive, pushEvents, rotateSlice } from "./merge";
+import type { FeedEvent, TrackedToken } from "./types";
 
 const token = (id: string, extra: Partial<TrackedToken> = {}): TrackedToken => ({
   id,
@@ -40,6 +40,34 @@ describe("mergeLists", () => {
     const events = eventsForNew([token("a"), token("b", { symbol: "NEW", stage: "launching" })], known);
     expect(events).toHaveLength(1);
     expect(events[0].text).toContain("$NEW");
+  });
+
+  it("emits one event per mint when a feed reprints the same token", () => {
+    const events = eventsForNew([token("a"), token("a"), token("a")], new Set());
+    expect(events).toHaveLength(1);
+  });
+});
+
+describe("pushEvents", () => {
+  const event = (id: string, at = 1): FeedEvent => ({ id, at, text: id });
+
+  it("drops repeats already on the tape", () => {
+    const tape = pushEvents([event("a")], [event("a"), event("b")]);
+    expect(tape.map((item) => item.id)).toEqual(["b", "a"]);
+  });
+
+  it("keeps the tape inside its cap", () => {
+    const tape = pushEvents(
+      Array.from({ length: 24 }, (_, i) => event(`old-${i}`)),
+      [event("new")],
+    );
+    expect(tape).toHaveLength(24);
+    expect(tape[0].id).toBe("new");
+  });
+
+  it("returns the same tape when nothing is new", () => {
+    const prev = [event("a")];
+    expect(pushEvents(prev, [event("a")])).toBe(prev);
   });
 });
 

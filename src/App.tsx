@@ -23,7 +23,7 @@ import {
 } from "./api";
 import { CHAINS, GECKO_NETWORKS, chainLabel, normalizeChain } from "./chains";
 import { LAUNCHPADS } from "./launchpads";
-import { eventsForNew, mergeLists, overlayLive } from "./merge";
+import { eventsForNew, mergeLists, overlayLive, pushEvents } from "./merge";
 import {
   enrichTokenSocial,
   fetchTweetAttractions,
@@ -302,7 +302,7 @@ export default function App() {
     const fresh = eventsForNew(incoming, knownIds.current);
     for (const token of incoming) knownIds.current.add(token.id);
     if (fresh.length) {
-      setEvents((prev) => [...fresh, ...prev].slice(0, 24));
+      setEvents((prev) => pushEvents(prev, fresh));
       setSeen((count) => count + fresh.length);
     }
     setter((prev) => mergeLists(prev, incoming));
@@ -409,14 +409,14 @@ export default function App() {
           brainRef.current = learned.brain;
           setBrain(learned.brain);
           setEvents((prev) =>
-            [
-              ...learned.fresh.map((lesson) => ({
+            pushEvents(
+              prev,
+              learned.fresh.map((lesson) => ({
                 id: `learn:${lesson.id}:${lesson.at}`,
                 at: lesson.at,
                 text: `LEARNED $${lesson.symbol} · ${lesson.why[0] ?? "rip"}`,
               })),
-              ...prev,
-            ].slice(0, 24),
+            ),
           );
         }
       }
@@ -665,6 +665,15 @@ export default function App() {
     if (!opened) return;
     void ensureRugCheck(opened);
   }, [opened, ensureRugCheck]);
+
+  useEffect(() => {
+    if (!openId) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpenId(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [openId]);
 
   useEffect(() => {
     let alive = true;
@@ -1120,7 +1129,12 @@ export default function App() {
         <aside className="side">
           {opened && (
             <>
-              <h2>${opened.symbol} details</h2>
+              <div className="side-head">
+                <h2>${opened.symbol} details</h2>
+                <button className="mini side-close" onClick={() => setOpenId(null)} aria-label="Close details">
+                  ✕
+                </button>
+              </div>
               <p>
                 {opened.name} · {chainLabel(opened.chainId)}
                 {opened.launchpad ? ` · ${opened.launchpad}` : ""} · {opened.stage ?? "live"} ·{" "}
