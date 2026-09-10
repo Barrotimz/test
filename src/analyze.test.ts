@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { analyzeToken } from "./analyze";
+import { analyzeToken, heatLane, heatRank, pickByHeat } from "./analyze";
 import { emptyBrain, learnFromTokens } from "./learn";
 import type { TrackedToken } from "./types";
 
@@ -76,5 +76,54 @@ describe("analyzeToken", () => {
       brain,
     );
     expect(next.call.reasons.join(" ")).toMatch(/PONS|Robinhood/i);
+  });
+
+  it("orders heat hot before warm before fresh", () => {
+    expect(heatRank("hot")).toBeLessThan(heatRank("warm"));
+    expect(heatRank("warm")).toBeLessThan(heatRank("fresh"));
+    expect(heatRank("fresh")).toBeLessThan(heatRank("quiet"));
+    expect(heatRank("quiet")).toBeLessThan(heatRank("trap"));
+    const quiet = heatLane(
+      token({ id: "solana:old", pairCreatedAt: Date.now() - 10 * 24 * 60 * 60_000, source: "profile" }),
+      emptyBrain(),
+    );
+    expect(["quiet", "trap", "fresh"]).toContain(quiet);
+  });
+
+  it("does not mark a bare trending-feed coin as hot", () => {
+    const lane = heatLane(
+      token({
+        id: "solana:trend",
+        source: "trending",
+        pairCreatedAt: Date.now() - 3 * 24 * 60 * 60_000,
+      }),
+      emptyBrain(),
+    );
+    expect(lane).not.toBe("hot");
+  });
+
+  it("puts a new empty launch in fresh and a dump in the cooling lane", () => {
+    const brain = emptyBrain();
+    const fresh = heatLane(
+      token({
+        id: "solana:new",
+        stage: "launching",
+        pairCreatedAt: Date.now() - 8 * 60_000,
+      }),
+      brain,
+    );
+    const dump = token({
+      id: "solana:dump",
+      change5m: -22,
+      change1h: -40,
+      buys1h: 8,
+      sells1h: 40,
+      volume1h: 9_000,
+    });
+    expect(fresh).toBe("fresh");
+    expect(heatLane(dump, brain)).toBe("trap");
+    expect(pickByHeat([dump, token({ id: "solana:other" })], brain, "trap").map((row) => row.id)).toEqual([
+      "solana:dump",
+    ]);
   });
 });

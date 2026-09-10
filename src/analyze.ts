@@ -1,7 +1,9 @@
-import { pairAgeMs, tweetInteractions } from "./format";
+import { coinAgeBucket, pairAgeMs, tweetInteractions } from "./format";
 import { scoreAgainstBrain, type RunnerBrain, type RunnerCall } from "./learn";
 import type { RugReport } from "./rug";
 import type { TrackedToken } from "./types";
+
+export type HeatLane = "hot" | "warm" | "fresh" | "quiet" | "trap";
 
 export type AnalysisVerdict = "strong" | "mixed" | "weak" | "trap";
 
@@ -18,6 +20,7 @@ export type TokenAnalysis = {
   momentum: "up" | "fade" | "dump" | "flat";
   social: "hot" | "warm" | "paid" | "none";
   flow: "buyers" | "even" | "sellers" | "thin";
+  heat: HeatLane;
 };
 
 function engagementRate(token: TrackedToken): number | undefined {
@@ -127,6 +130,18 @@ export function analyzeToken(token: TrackedToken, brain: RunnerBrain, rug?: RugR
     score -= 10;
     notes.push({ side: "against", text: "Parabolic on a brand-new thin pool — often the exit, not the entry" });
   }
+  if (token.livestream && (vol1 >= 500 || likes >= 10)) {
+    score += 6;
+    notes.push({ side: "for", text: "Livestream is on — attention is happening now" });
+  }
+  if (token.kingOfHill) {
+    score += 6;
+    notes.push({ side: "for", text: "King of the hill — winning the pad attention war" });
+  }
+  if (token.bondingPct != null && token.bondingPct >= 80) {
+    score += 5;
+    notes.push({ side: "for", text: `Bonding curve is ${token.bondingPct}% — close to graduation` });
+  }
 
   if (rug?.level === "danger") {
     score -= 24;
@@ -143,16 +158,46 @@ export function analyzeToken(token: TrackedToken, brain: RunnerBrain, rug?: RugR
   }
 
   score = Math.max(0, Math.min(100, score));
-  const verdict: AnalysisVerdict =
-    (momentum === "dump" && score < 55) || score < 22
-      ? "trap"
-      : score >= 64
-        ? "strong"
-        : score >= 38
-          ? "mixed"
-          : "weak";
+  const looksLikeTrap =
+    (momentum === "dump" && score < 55) ||
+    (score < 22 &&
+      (momentum === "dump" ||
+        momentum === "fade" ||
+        flow === "sellers" ||
+        social === "paid" ||
+        rug?.level === "danger"));
+  const verdict: AnalysisVerdict = looksLikeTrap
+    ? "trap"
+    : score >= 64
+      ? "strong"
+      : score >= 38
+        ? "mixed"
+        : "weak";
 
-  return { verdict, score, call, notes: notes.slice(0, 7), momentum, social, flow };
+  const confirmedHot =
+    verdict === "strong" ||
+    call.level === "runner" ||
+    (social === "hot" && (momentum === "up" || vol1 >= 8_000 || flow === "buyers"));
+  const confirmedWarm =
+    verdict === "mixed" ||
+    call.level === "setup" ||
+    social === "warm" ||
+    token.kingOfHill === true ||
+    (token.livestream === true && vol1 >= 1_000) ||
+    (token.bondingPct != null && token.bondingPct >= 70);
+
+  const heat: HeatLane =
+    verdict === "trap" || momentum === "dump"
+      ? "trap"
+      : confirmedHot
+        ? "hot"
+        : confirmedWarm
+          ? "warm"
+          : token.stage === "launching" || coinAgeBucket(token.pairCreatedAt) === "fresh"
+            ? "fresh"
+            : "quiet";
+
+  return { verdict, score, call, notes: notes.slice(0, 7), momentum, social, flow, heat };
 }
 
 function followersHigh(token: TrackedToken): boolean {
@@ -161,6 +206,31 @@ function followersHigh(token: TrackedToken): boolean {
 
 export function isLikelyDump(token: TrackedToken): boolean {
   return (token.change1h ?? 0) <= -35 && ((token.volume1h ?? 0) > 2_000 || (token.tweetLikes ?? 0) > 20);
+}
+
+export function heatLane(token: TrackedToken, brain: RunnerBrain, rug?: RugReport): HeatLane {
+  return analyzeToken(token, brain, rug).heat;
+}
+
+export function heatRank(lane: HeatLane): number {
+  return { hot: 0, warm: 1, fresh: 2, quiet: 3, trap: 4 }[lane];
+}
+
+export function uniqueTokens(tokens: TrackedToken[]): TrackedToken[] {
+  const map = new Map<string, TrackedToken>();
+  for (const token of tokens) map.set(token.id, token);
+  return [...map.values()];
+}
+
+export function pickByHeat(
+  tokens: TrackedToken[],
+  brain: RunnerBrain,
+  lane: HeatLane,
+  analyze: (token: TrackedToken) => TokenAnalysis = (token) => analyzeToken(token, brain),
+): TrackedToken[] {
+  return uniqueTokens(tokens)
+    .filter((token) => analyze(token).heat === lane)
+    .sort((a, b) => analyze(b).score - analyze(a).score);
 }
 
 export function pickAnalyzedRunners(tokens: TrackedToken[], brain: RunnerBrain, limit = 24): TrackedToken[] {

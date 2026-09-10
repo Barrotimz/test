@@ -15,10 +15,13 @@ If you want sub-second tweet alerts into Telegram/Discord/bots:
 
 ## What this app does
 
-- **Launching** — not pump.fun only. Native feeds: pump.fun + Bags. Dedicated new-pool scans for **BNB** (Four.meme and other BNB pads) and **Robinhood** every cycle, plus a global Gecko feed for every other chain. Filter by launchpad chip.
+- **Heat tabs** (hottest → coolest): **Trending** → **Hot** → **Warm** → **Fresh** → **Cooling**. Cards default-sort the same way. Heat is an analysis lane (momentum + X + flow), not just “on the trending feed”.
+- **Trending** — GeckoTerminal trending pools, sorted by heat
+- **Hot / Warm** — cross-cut of every live bag: strongest reads, then coins that are only heating up
+- **Fresh** — new pools and bonding coins (pump.fun, Bags, BNB / Four.meme, Robinhood, global Gecko). Filter by launchpad chip.
+- **Cooling** — dumps and trap-shaped prints so you can skip late candles
 - **Twitter radar** — latest DexScreener token profiles that include an X link
 - **Boosted** — tokens paying for visibility (attention, not quality)
-- **Trending** — GeckoTerminal trending pools (Solana / Base / BSC / Ethereum)
 - **KOL watch** — local list of X handles with live `from:handle` search
 - **CA scanner** — paste a tweet, extract tickers / handles / Solana + EVM addresses, look them up
 - **Watchlist** — saved in `localStorage`
@@ -28,7 +31,7 @@ If you want sub-second tweet alerts into Telegram/Discord/bots:
   - Local pair stats: thin liquidity and brand-new pools
 - **Tweet attraction** — launching coins with an X status link show **likes and total interactions** on the card (RTs + replies + quotes + bookmarks). You do not have to open Twitter. You can still paste an `x.com/.../status/ID` link in the CA scanner (`quiet` / `warming` / `hot` / `viral`)
 - **Token hype** — each card gets a market-attraction badge from 24h volume, 1h pump, Dex boosts, turnover, and tweet likes
-- **Filters** — last hour, still bonding, has X, has likes; sort newest / hottest / most likes
+- **Filters** — last hour, still bonding, has X, has likes; sort hot→warm→fresh / newest / hottest / most likes / looks like a runner
 - **Padre** — Copy CA sits next to a Padre button that opens `https://trade.padre.gg/trade/{chain}/{contract}` for that exact coin (Solana, BNB, ETH, Base)
 - **Learned rips** — studies million-dollar runners (PONS on Robinhood, graduated pump coins) vs the pack: why they went so much higher (reach, venue, volume). The tab lists those lessons and **possible runners** scored from that memory. Heuristic only.
 - **Analysis** — each card gets a strong/mixed/weak/trap read: 5m vs 1h momentum, likes vs followers, buy/sell quality, wash-looking volume, thin liquidity, paid boosts with a dead tweet. Sidebar shows the full for/against list.

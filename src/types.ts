@@ -108,7 +108,18 @@ export type Kol = {
   note: string;
 };
 
-export type TabId = "launch" | "radar" | "boosts" | "trending" | "learn" | "kols" | "scanner" | "watch";
+export type TabId =
+  | "trending"
+  | "hot"
+  | "warm"
+  | "launch"
+  | "cooling"
+  | "learn"
+  | "radar"
+  | "boosts"
+  | "scanner"
+  | "kols"
+  | "watch";
 
 export type FeedEvent = {
   id: string;

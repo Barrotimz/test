@@ -44,7 +44,7 @@ import {
   twitterHandle,
 } from "./format";
 import { DEFAULT_KOLS } from "./kols";
-import { analyzeToken, pickAnalyzedRunners } from "./analyze";
+import { analyzeToken, heatRank, pickAnalyzedRunners, pickByHeat, uniqueTokens } from "./analyze";
 import {
   brainInsights,
   emptyBrain,
@@ -57,16 +57,42 @@ import type { FeedEvent, Kol, TabId, TrackedToken } from "./types";
 const WATCH_KEY = "xmeme-watchlist";
 const KOL_KEY = "xmeme-kols";
 const LEARN_KEY = "xmeme-runner-brain";
-const TABS: { id: TabId; label: string }[] = [
-  { id: "launch", label: "Launching" },
+const TABS: { id: TabId; label: string; heat?: boolean }[] = [
+  { id: "trending", label: "Trending", heat: true },
+  { id: "hot", label: "Hot", heat: true },
+  { id: "warm", label: "Warm", heat: true },
+  { id: "launch", label: "Fresh", heat: true },
+  { id: "cooling", label: "Cooling", heat: true },
   { id: "learn", label: "Learned rips" },
   { id: "radar", label: "Twitter radar" },
   { id: "boosts", label: "Boosted" },
-  { id: "trending", label: "Trending" },
   { id: "scanner", label: "CA scanner" },
   { id: "kols", label: "KOL watch" },
   { id: "watch", label: "Watchlist" },
 ];
+
+const HEAT_COPY: Partial<Record<TabId, { title: string; body: string }>> = {
+  trending: {
+    title: "Already moving on the market",
+    body: "GeckoTerminal trending pools, sorted hottest first. Next tabs are earlier: Hot (our strongest reads), Warm (heating up), Fresh (just launched), then Cooling (dumps and traps).",
+  },
+  hot: {
+    title: "Hot — strongest reads right now",
+    body: "Cross-cut of every live bag: aligned momentum, real X heat with volume, or a runner-shaped setup. Not every trending pool lands here.",
+  },
+  warm: {
+    title: "Warm — heating up, not confirmed yet",
+    body: "Mixed analysis, early social, late bonding, livestreams, or king-of-the-hill. Same early tells million-runners had before they ripped.",
+  },
+  launch: {
+    title: "Fresh — new pools and bonding coins",
+    body: "Pump.fun, Bags, BNB, Robinhood, and global new pools. Sorted by heat so the ones already warming float up.",
+  },
+  cooling: {
+    title: "Cooling — dumps and trap-shaped prints",
+    body: "Coins the analysis marks as trap or already dumping. Useful so you do not chase a candle that already exited.",
+  },
+};
 
 function loadJson<T>(key: string, fallback: T): T {
   try {
@@ -78,7 +104,7 @@ function loadJson<T>(key: string, fallback: T): T {
 }
 
 export default function App() {
-  const [tab, setTab] = useState<TabId>("launch");
+  const [tab, setTab] = useState<TabId>("trending");
   const [query, setQuery] = useState("");
   const [launching, setLaunching] = useState<TrackedToken[]>([]);
   const [radar, setRadar] = useState<TrackedToken[]>([]);
@@ -104,7 +130,7 @@ export default function App() {
   const [rugError, setRugError] = useState<Record<string, string>>({});
   const [tweets, setTweets] = useState<TweetAttraction[]>([]);
   const [tweetBusy, setTweetBusy] = useState(false);
-  const [sortMode, setSortMode] = useState<"newest" | "hype" | "likes" | "learn">("newest");
+  const [sortMode, setSortMode] = useState<"heat" | "newest" | "hype" | "likes" | "learn">("heat");
   const [ageFilter, setAgeFilter] = useState<"all" | "fresh" | "bonding">("all");
   const [socialFilter, setSocialFilter] = useState<"all" | "twitter" | "likes">("all");
   const [padFilter, setPadFilter] = useState<string>("all");
@@ -381,6 +407,17 @@ export default function App() {
   }
 
   const watchedIds = new Set(watch.map((item) => item.id));
+  const allLive = useMemo(
+    () => uniqueTokens([...launching, ...radar, ...boosts, ...trending]),
+    [launching, radar, boosts, trending],
+  );
+  const analysisOf = useCallback(
+    (token: TrackedToken) => analyzeToken(token, brain, rugs[token.id]),
+    [brain, rugs],
+  );
+  const hotList = useMemo(() => pickByHeat(allLive, brain, "hot", analysisOf), [allLive, brain, analysisOf]);
+  const warmList = useMemo(() => pickByHeat(allLive, brain, "warm", analysisOf), [allLive, brain, analysisOf]);
+  const coolingList = useMemo(() => pickByHeat(allLive, brain, "trap", analysisOf), [allLive, brain, analysisOf]);
   const visible = sortTokens(
     pickTokens(tab, {
       launch: launching,
@@ -392,6 +429,7 @@ export default function App() {
       scanned,
       query,
       brain,
+      analyze: analysisOf,
     }).filter((token) => {
       if (enabledChains.length > 0 && enabledChains.length !== CHAINS.length) {
         if (!enabledChains.includes(normalizeChain(token.chainId))) return false;
@@ -406,8 +444,9 @@ export default function App() {
       const hay = `${token.symbol} ${token.name} ${token.tokenAddress} ${token.chainId} ${token.launchpad ?? ""} ${token.twitterHandle ?? ""}`.toLowerCase();
       return hay.includes(needle);
     }),
-    tab === "learn" ? "learn" : sortMode,
+    tab === "learn" ? "learn" : tab === "hot" || tab === "warm" || tab === "cooling" ? "heat" : sortMode,
     brain,
+    analysisOf,
   );
   const opened = visible.find((token) => token.id === openId) ?? launching.find((token) => token.id === openId);
 
@@ -447,8 +486,11 @@ export default function App() {
             )}
             <select
               value={sortMode}
-              onChange={(event) => setSortMode(event.target.value as "newest" | "hype" | "likes" | "learn")}
+              onChange={(event) =>
+                setSortMode(event.target.value as "heat" | "newest" | "hype" | "likes" | "learn")
+              }
             >
+              <option value="heat">Hot → warm → fresh</option>
               <option value="newest">Newest first</option>
               <option value="hype">Hottest first</option>
               <option value="likes">Most likes</option>
@@ -461,9 +503,9 @@ export default function App() {
       <div className="banner">
         <h2>What this tracks</h2>
         <p>
-          Not pump.fun only. Launching pulls pump.fun and Bags bonding coins, then new pools on
-          BNB (including Four.meme) and Robinhood every cycle, plus a global feed for every other
-          chain. Filter by launchpad below. Tweet likes land on the card when an X post is attached.
+          Tabs run hottest to coolest: Trending → Hot → Warm → Fresh → Cooling. Launching still
+          pulls pump.fun, Bags, BNB (Four.meme), Robinhood, and a global new-pool feed. Filter by
+          launchpad below. Tweet likes land on the card when an X post is attached.
         </p>
       </div>
 
@@ -472,6 +514,8 @@ export default function App() {
         <b>{enabledChains.length}</b> chains
         <b>{seen}</b> new this session
         <b>{launching.filter((token) => token.tweetLikes != null).length}</b> with likes
+        <b>{hotList.length}</b> hot
+        <b>{warmList.length}</b> warm
         <b>{launching.length + radar.length + boosts.length + trending.length}</b> in memory
         <span>{updatedAt ? `scan ${ageLabel(updatedAt)} ago` : "starting…"}</span>
       </div>
@@ -565,27 +609,44 @@ export default function App() {
 
       <nav className="tabs">
         {TABS.map((item) => (
-          <button key={item.id} className={tab === item.id ? "active" : ""} onClick={() => setTab(item.id)}>
+          <button
+            key={item.id}
+            className={`${tab === item.id ? "active" : ""} ${item.heat ? `heat-tab heat-${item.id}` : ""}`.trim()}
+            onClick={() => setTab(item.id)}
+          >
             {item.label}
             {item.id === "watch"
-            ? ` (${watch.length})`
-            : item.id === "launch"
-              ? ` (${launching.length})`
-              : item.id === "radar"
-                ? ` (${radar.length})`
-                : item.id === "boosts"
-                  ? ` (${boosts.length})`
-                  : item.id === "trending"
-                    ? ` (${trending.length})`
-                    : item.id === "learn"
-                      ? ` (${brain.studied})`
-                      : ""}
+              ? ` (${watch.length})`
+              : item.id === "launch"
+                ? ` (${launching.length})`
+                : item.id === "radar"
+                  ? ` (${radar.length})`
+                  : item.id === "boosts"
+                    ? ` (${boosts.length})`
+                    : item.id === "trending"
+                      ? ` (${trending.length})`
+                      : item.id === "hot"
+                        ? ` (${hotList.length})`
+                        : item.id === "warm"
+                          ? ` (${warmList.length})`
+                          : item.id === "cooling"
+                            ? ` (${coolingList.length})`
+                            : item.id === "learn"
+                              ? ` (${brain.studied})`
+                              : ""}
           </button>
         ))}
       </nav>
 
       <div className="grid">
         <section>
+          {HEAT_COPY[tab] && (
+            <div className="banner">
+              <h2>{HEAT_COPY[tab]?.title}</h2>
+              <p>{HEAT_COPY[tab]?.body}</p>
+            </div>
+          )}
+
           {tab === "scanner" && (
             <div className="banner">
               <h2>Paste a tweet or Telegram dump</h2>
@@ -711,9 +772,19 @@ export default function App() {
             <p className="empty">
               {tab === "learn"
                 ? "No setups match the learned rips yet. Keep the sniffer running."
-                : status === "busy"
-                  ? "Loading tokens…"
-                  : "Nothing here yet. Try a search or another tab."}
+                : tab === "hot"
+                  ? "Nothing is hot right now. Check Warm or Fresh for earlier tells."
+                  : tab === "warm"
+                    ? "No coins are warming yet. Fresh launches show up next."
+                    : tab === "cooling"
+                      ? "No dumps or traps in memory. That is the good kind of empty."
+                      : tab === "trending"
+                        ? "No trending pools yet. The next Gecko scan will fill this."
+                        : tab === "launch"
+                          ? "Waiting for the next new pool or bonding coin…"
+                          : status === "busy"
+                            ? "Loading tokens…"
+                            : "Nothing here yet. Try a search or another tab."}
             </p>
           ) : (
             <div className="cards">
@@ -728,7 +799,7 @@ export default function App() {
                   rugBusy={Boolean(rugBusy[token.id])}
                   rugError={rugError[token.id]}
                   onRugCheck={() => void runRugCheck(token)}
-                  analysis={analyzeToken(token, brain, rugs[token.id])}
+                  analysis={analysisOf(token)}
                 />
               ))}
             </div>
@@ -826,7 +897,7 @@ export default function App() {
                   {opened.bondingPct != null ? `${opened.bondingPct}%` : "—"}
                 </div>
               </div>
-              <AnalysisPanel analysis={analyzeToken(opened, brain, rugs[opened.id])} />
+              <AnalysisPanel analysis={analysisOf(opened)} />
               <TweetPulse token={opened} />
               {opened.tweetText && <p className="desc">{opened.tweetText}</p>}
               <p className="sub">
@@ -985,13 +1056,16 @@ function pickTokens(
     scanned: TrackedToken[];
     query: string;
     brain: RunnerBrain;
+    analyze: (token: TrackedToken) => ReturnType<typeof analyzeToken>;
   },
 ): TrackedToken[] {
+  const live = [...bags.launch, ...bags.radar, ...bags.trending, ...bags.boosts];
   if (tab === "scanner") return bags.scanned;
   if (tab === "kols") return [];
-  if (tab === "learn") {
-    return pickAnalyzedRunners([...bags.launch, ...bags.radar, ...bags.trending, ...bags.boosts], bags.brain);
-  }
+  if (tab === "learn") return pickAnalyzedRunners(live, bags.brain);
+  if (tab === "hot") return pickByHeat(live, bags.brain, "hot", bags.analyze);
+  if (tab === "warm") return pickByHeat(live, bags.brain, "warm", bags.analyze);
+  if (tab === "cooling") return pickByHeat(live, bags.brain, "trap", bags.analyze);
   if (tab === "watch") return bags.watch;
   if (tab === "boosts") return bags.boosts;
   if (tab === "trending") return bags.trending;
@@ -1002,11 +1076,20 @@ function pickTokens(
 
 function sortTokens(
   tokens: TrackedToken[],
-  mode: "newest" | "hype" | "likes" | "learn",
+  mode: "heat" | "newest" | "hype" | "likes" | "learn",
   brain: RunnerBrain = emptyBrain(),
+  analyze: (token: TrackedToken) => ReturnType<typeof analyzeToken> = (token) => analyzeToken(token, brain),
 ): TrackedToken[] {
   const copy = [...tokens];
-  if (mode === "newest") {
+  if (mode === "heat") {
+    copy.sort((a, b) => {
+      const left = analyze(a);
+      const right = analyze(b);
+      const lane = heatRank(left.heat) - heatRank(right.heat);
+      if (lane !== 0) return lane;
+      return right.score - left.score;
+    });
+  } else if (mode === "newest") {
     copy.sort((a, b) => (toMillis(b.pairCreatedAt) ?? 0) - (toMillis(a.pairCreatedAt) ?? 0));
   } else if (mode === "likes") {
     copy.sort((a, b) => (b.tweetLikes ?? -1) - (a.tweetLikes ?? -1) || (tweetInteractions(b) ?? -1) - (tweetInteractions(a) ?? -1));
@@ -1056,7 +1139,7 @@ function AnalysisPanel({
       <div className="analysis-head">
         <b>{analysis.verdict} analysis</b>
         <span>
-          {analysis.momentum} · {analysis.social} social · {analysis.flow} flow · {analysis.score}
+          {analysis.heat} · {analysis.momentum} · {analysis.social} social · {analysis.flow} flow · {analysis.score}
         </span>
       </div>
       {notes.map((note) => (
@@ -1177,6 +1260,9 @@ function TokenCard({
         </span>
         <span className={`badge ${hype.level}`} title="Market hype from volume, pump, and boosts">
           {hype.level}
+        </span>
+        <span className={`badge ${analysis.heat}`} title="Heat lane: hot → warm → fresh → quiet / trap">
+          {analysis.heat}
         </span>
         {call.level !== "watch" && (
           <span className={`badge ${call.level}`} title={call.reasons.join(" · ")}>
