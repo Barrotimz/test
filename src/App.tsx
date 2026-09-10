@@ -79,8 +79,8 @@ const HEAT_COPY: Partial<Record<TabId, { title: string; body: string }>> = {
     body: "What the market is already chasing. Next: today's meta (copycats), then Hot → Warm → Fresh → Cooling.",
   },
   meta: {
-    title: "Today's meta — copy the rip",
-    body: "If $LAPTOP runs to millions, $DESKTOP and the rest of that category show up here. Same bag, side by side.",
+    title: "Today's meta",
+    body: "Whatever went hardest on the tape today is the meta. We name it, then pull the same-category bag.",
   },
   hot: {
     title: "Hot",
@@ -245,8 +245,6 @@ export default function App() {
       ];
       if (tick % 2 === 0) {
         jobs.push(fetchPumpHottest(24).then((rows) => ingest(rows, setLaunching)).catch(() => undefined));
-      }
-      if (tick % 4 === 1) {
         jobs.push(fetchGeckoGlobal("trending_pools").then((rows) => ingest(rows, setTrending)));
       }
       if (tick % 5 === 0) {
@@ -255,16 +253,11 @@ export default function App() {
             .then((rows) => ingest(rows, setTrending))
             .catch(() => undefined),
         );
-        jobs.push(
-          searchTokens("PONS")
-            .then((rows) => ingest(rows, setTrending))
-            .catch(() => undefined),
-        );
       }
-      if (tick % 6 === 3) {
+      if (tick % 3 === 1) {
         const bag = uniqueTokens(Object.values(bagsRef.current).flat());
         const queries = metaSearchQueries(detectTodayMetas(bag, brainRef.current.lessons));
-        const query = queries[(Math.floor(tick / 6) % Math.max(queries.length, 1))];
+        const query = queries[Math.floor(tick / 3) % Math.max(queries.length, 1)];
         if (query) {
           jobs.push(
             searchTokens(query)
@@ -444,6 +437,7 @@ export default function App() {
     [todayMetas, metaFilter],
   );
   const metaList = useMemo(() => pickMetaCoins(allLive, activeMetas), [allLive, activeMetas]);
+  const leadMeta = todayMetas[0];
   const visible = sortTokens(
     pickTokens(tab, {
       launch: launching,
@@ -490,7 +484,7 @@ export default function App() {
           <div className="logo">XR</div>
           <div>
             <h1>XMeme Radar</h1>
-            <p>Today's meta, then heat. More coins on one screen.</p>
+            <p>Today's biggest rip is the meta. Same-category coins sit next to it.</p>
           </div>
         </div>
         <form className="search-wrap" onSubmit={onSearch}>
@@ -545,27 +539,32 @@ export default function App() {
           {showFilters ? "Hide filters" : "Filters"}
         </button>
       </div>
-      {todayMetas.length > 0 && (
-        <div className="meta-strip">
-          {todayMetas.map((meta) => (
-            <button
-              key={meta.id}
-              type="button"
-              className={`chip ${metaFilter === meta.id || tab === "meta" ? "on" : ""}`}
-              onClick={() => {
-                setMetaFilter(meta.id);
-                setTab("meta");
-              }}
-            >
-              ${meta.seedSymbol}
-              {meta.seedMcap ? ` ${compactUsd(meta.seedMcap)}` : ""} → {meta.label}
-            </button>
-          ))}
-          {metaFilter !== "all" && (
-            <button type="button" className="chip" onClick={() => setMetaFilter("all")}>
-              All metas
-            </button>
-          )}
+      {leadMeta && (
+        <div className="banner meta-hero">
+          <h2>{leadMeta.headline}</h2>
+          <p>{leadMeta.why}</p>
+          <div className="meta-strip">
+            {todayMetas.map((meta) => (
+              <button
+                key={meta.id}
+                type="button"
+                className={`chip ${metaFilter === meta.id ? "on" : ""}`}
+                onClick={() => {
+                  setMetaFilter(meta.id);
+                  setTab("meta");
+                }}
+              >
+                ${meta.seedSymbol}
+                {meta.seedChange != null ? ` ${pct(meta.seedChange)}` : ""}
+                {meta.seedMcap ? ` · ${compactUsd(meta.seedMcap)}` : ""} → {meta.label}
+              </button>
+            ))}
+            {metaFilter !== "all" && (
+              <button type="button" className="chip" onClick={() => setMetaFilter("all")}>
+                All of today's metas
+              </button>
+            )}
+          </div>
         </div>
       )}
       <div className="tape">
@@ -691,11 +690,22 @@ export default function App() {
 
       <div className={`grid ${opened ? "open" : ""}`}>
         <section>
-          {HEAT_COPY[tab] && (
+          {tab === "meta" ? (
             <div className="banner">
-              <h2>{HEAT_COPY[tab]?.title}</h2>
-              <p>{HEAT_COPY[tab]?.body}</p>
+              <h2>{leadMeta ? leadMeta.headline : "Reading today's tape"}</h2>
+              <p>
+                {leadMeta
+                  ? `${leadMeta.why} Cards below are that bag — the rip plus same-category names.`
+                  : "No coin has run hard enough today yet. As soon as Trending prints a real rip, that ticker becomes the meta and we search the same category."}
+              </p>
             </div>
+          ) : (
+            HEAT_COPY[tab] && (
+              <div className="banner">
+                <h2>{HEAT_COPY[tab]?.title}</h2>
+                <p>{HEAT_COPY[tab]?.body}</p>
+              </div>
+            )
           )}
 
           {tab === "scanner" && (
@@ -824,7 +834,7 @@ export default function App() {
               {tab === "learn"
                 ? "No setups match the learned rips yet. Keep the sniffer running."
                 : tab === "meta"
-                  ? "No category rip yet. When something like $LAPTOP hits millions, $DESKTOP and the rest of that bag land here."
+                  ? "Nothing has defined today's meta yet. Watch Trending — the coin that goes parabolic today becomes the bag we copy."
                   : tab === "hot"
                   ? "Nothing is hot right now. Check Warm or Fresh for earlier tells."
                   : tab === "warm"
@@ -1192,7 +1202,7 @@ function AnalysisPanel({
   analysis: ReturnType<typeof analyzeToken>;
   compact?: boolean;
 }) {
-  const notes = compact ? [] : analysis.notes;
+  const notes = compact ? analysis.notes.slice(0, 1) : analysis.notes;
   return (
     <div className={`analysis ${analysis.verdict}`}>
       <div className="analysis-head">
@@ -1320,7 +1330,7 @@ function TokenCard({
         <div className="grow">
           <div className="sym">${token.symbol}</div>
           <div className="sub">
-            {chainLabel(token.chainId)}
+            {token.name} · {chainLabel(token.chainId)}
             {token.launchpad ? ` · ${token.launchpad}` : ""}
             {token.livestream ? " · LIVE" : ""}
           </div>
@@ -1328,7 +1338,7 @@ function TokenCard({
         <span className={`badge ${analysis.heat}`}>{analysis.heat}</span>
         {meta && (
           <span className="badge meta" title={meta.why}>
-            {meta.seedSymbol === token.symbol ? "meta seed" : `w/ $${meta.seedSymbol}`}
+            {meta.seedSymbol.toUpperCase() === token.symbol.toUpperCase() ? "today's meta" : `same as $${meta.seedSymbol}`}
           </span>
         )}
         {rug && <span className={`badge ${rug.level}`}>{rug.level}</span>}
@@ -1343,6 +1353,14 @@ function TokenCard({
         <div>
           <span>1h</span>
           <b className={change && change < 0 ? "neg" : "pos"}>{pct(change)}</b>
+        </div>
+        <div>
+          <span>24h</span>
+          <b className={(token.change24h ?? 0) < 0 ? "neg" : "pos"}>{pct(token.change24h)}</b>
+        </div>
+        <div>
+          <span>Liq</span>
+          {compactUsd(token.liquidity)}
         </div>
         <div>
           <span>Age</span>
