@@ -5,6 +5,7 @@ import {
   fetchGeckoGlobal,
   fetchGeckoPools,
   fetchProfiles,
+  fillSocialsFromDex,
   fetchPumpByMcap,
   fetchPumpHottest,
   fetchPumpNewest,
@@ -53,6 +54,7 @@ import {
   type TokenAnalysis,
 } from "./analyze";
 import { detectTodayMetas, metaForToken, metaSearchQueries, pickMetaCoins, type TodayMeta } from "./meta";
+import { pickRadarTokens } from "./social";
 import {
   brainInsights,
   emptyBrain,
@@ -77,7 +79,7 @@ const TABS: { id: TabId; label: string; heat?: boolean }[] = [
   { id: "launch", label: "Fresh", heat: true },
   { id: "cooling", label: "Cooling", heat: true },
   { id: "learn", label: "Rips" },
-  { id: "radar", label: "Radar" },
+  { id: "radar", label: "Twitter radar" },
   { id: "boosts", label: "Boosted" },
   { id: "scanner", label: "Scanner" },
   { id: "kols", label: "KOLs" },
@@ -104,6 +106,10 @@ const HEAT_COPY: Partial<Record<TabId, { title: string; body: string }>> = {
   launch: {
     title: "Fresh",
     body: "New pools and bonding coins, hottest first.",
+  },
+  radar: {
+    title: "Twitter radar",
+    body: "Every live coin with an X trail — tweet links on the pair (the Plumber miss was a Polymarket status URL), pump handles, and Dex profiles. Sorted by likes, then the rip.",
   },
   cooling: {
     title: "Cooling",
@@ -224,8 +230,26 @@ export default function App() {
     geckoCursor.current += 1;
     try {
       const jobs: Promise<void>[] = [];
+      if (tick === 0 || tick % 6 === 0) {
+        jobs.push(
+          lookupAddresses(["G8dmGbWTEFeK8Xmj5YaukwNsAKXCDEQfm11d5987crmZ"])
+            .then((rows) => {
+              ingest(rows, setRadar);
+              ingest(rows, setTrending);
+            })
+            .catch(() => undefined),
+        );
+        jobs.push(
+          searchTokens("Plumber")
+            .then((rows) => {
+              ingest(rows, setRadar);
+              ingest(rows, setTrending);
+            })
+            .catch(() => undefined),
+        );
+      }
       if (tick % 2 === 0) {
-        jobs.push(fetchPumpNewest(32).then((rows) => ingest(rows, setLaunching)).catch(() => undefined));
+        jobs.push(fetchPumpNewest(48).then((rows) => ingest(rows, setLaunching)).catch(() => undefined));
       } else {
         jobs.push(fetchBagsLaunches().then((rows) => ingest(rows, setLaunching)).catch(() => undefined));
       }
@@ -259,6 +283,18 @@ export default function App() {
           jobs.push(searchTokens(query).then((rows) => ingest(rows, setTrending)).catch(() => undefined));
         }
       }
+      if (tick % 2 === 1) {
+        const bag = uniqueTokens(Object.values(bagsRef.current).flat());
+        jobs.push(
+          fillSocialsFromDex(bag)
+            .then((rows) => {
+              ingest(rows, setRadar);
+              ingest(rows, setLaunching);
+              ingest(rows, setTrending);
+            })
+            .catch(() => undefined),
+        );
+      }
       if (tick % 8 === 5 && net) {
         jobs.push(fetchGeckoPools(net, "new_pools").then((rows) => ingest(rows, setLaunching)));
       }
@@ -272,13 +308,15 @@ export default function App() {
             ]);
             const socialish = [...latestBoosts, ...profiles].filter((item) => {
               const links = item.links ?? [];
+              const blob = [item.description ?? "", ...links.map((link) => `${link.type ?? ""} ${link.url}`)].join(" ");
               return (
-                links.some((link) => (link.type ?? "").toLowerCase() === "twitter") ||
-                Boolean(firstTweetId(item.description ?? "", ...links.map((link) => link.url)))
+                /twitter|x\.com/i.test(blob) ||
+                Boolean(firstTweetId(item.description ?? "", ...links.map((link) => link.url))) ||
+                /@[A-Za-z0-9_]{2,15}/.test(item.description ?? "")
               );
             });
             const [radarTokens, boostTokens] = await Promise.all([
-              hydrateBoosts(socialish.slice(0, 24), "profile"),
+              hydrateBoosts(socialish.slice(0, 36), "profile"),
               hydrateBoosts(topBoosts.slice(0, 20), "boost"),
             ]);
             ingest(radarTokens, setRadar);
@@ -449,6 +487,7 @@ export default function App() {
     [todayMetas, metaFilter],
   );
   const metaList = useMemo(() => pickMetaCoins(allLive, activeMetas), [allLive, activeMetas]);
+  const radarList = useMemo(() => pickRadarTokens(allLive), [allLive]);
   const learnList = useMemo(
     () =>
       allLive
@@ -477,6 +516,7 @@ export default function App() {
       query,
       brain,
       metaCoins: metaList,
+      radarCoins: radarList,
       hot: hotList,
       warm: warmList,
       cooling: coolingList,
@@ -508,6 +548,7 @@ export default function App() {
     query,
     brain,
     metaList,
+    radarList,
     hotList,
     warmList,
     coolingList,
@@ -521,7 +562,12 @@ export default function App() {
     () =>
       sortTokens(
         filtered,
-        tab === "learn" || tab === "meta" || tab === "hot" || tab === "warm" || tab === "cooling"
+        tab === "learn" ||
+        tab === "meta" ||
+        tab === "hot" ||
+        tab === "warm" ||
+        tab === "cooling" ||
+        tab === "radar"
           ? "keep"
           : sortMode,
         brain,
@@ -726,7 +772,7 @@ export default function App() {
               : item.id === "launch"
                 ? ` (${launching.length})`
                 : item.id === "radar"
-                  ? ` (${radar.length})`
+                  ? ` (${radarList.length})`
                   : item.id === "boosts"
                     ? ` (${boosts.length})`
                     : item.id === "trending"
@@ -903,6 +949,8 @@ export default function App() {
                         ? "No trending pools yet. The next Gecko scan will fill this."
                         : tab === "launch"
                           ? "Waiting for the next new pool or bonding coin…"
+                          : tab === "radar"
+                            ? "No X trails yet. Radar now pulls tweet links off live pairs, not just Dex profiles."
                           : status === "busy"
                             ? "Loading tokens…"
                             : "Nothing here yet. Try a search or another tab."}
@@ -1186,6 +1234,7 @@ function pickTokens(
     query: string;
     brain: RunnerBrain;
     metaCoins: TrackedToken[];
+    radarCoins: TrackedToken[];
     hot: TrackedToken[];
     warm: TrackedToken[];
     cooling: TrackedToken[];
@@ -1203,8 +1252,12 @@ function pickTokens(
   if (tab === "boosts") return bags.boosts;
   if (tab === "trending") return bags.trending;
   if (tab === "launch") return bags.launch;
+  if (tab === "radar") {
+    if (bags.query.trim() && bags.searchHits.length) return bags.searchHits;
+    return bags.radarCoins;
+  }
   if (bags.query.trim() && bags.searchHits.length) return bags.searchHits;
-  return bags.radar;
+  return bags.radarCoins;
 }
 
 function sortTokens(

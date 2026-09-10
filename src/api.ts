@@ -2,6 +2,7 @@ import { geckoNetworkId, normalizeChain } from "./chains";
 import { launchpadFromDex } from "./launchpads";
 import { firstTweetId } from "./extract";
 import { tokenImage, twitterHandle } from "./format";
+import { attachXTrail, hasXTrail, pickTwitterUrl } from "./social";
 import type { DexBoost, DexTokenPair, TrackedToken } from "./types";
 
 const DEX = import.meta.env.DEV ? "/dex" : "https://api.dexscreener.com";
@@ -27,7 +28,7 @@ function txnSum(side?: { buys?: number; sells?: number }): number | undefined {
 export function pairToToken(pair: DexTokenPair, source: TrackedToken["source"]): TrackedToken {
   const socials = pair.info?.socials ?? [];
   const chainId = normalizeChain(pair.chainId);
-  return {
+  return attachXTrail({
     id: `${chainId}:${pair.baseToken.address}`,
     chainId,
     tokenAddress: pair.baseToken.address,
@@ -49,7 +50,7 @@ export function pairToToken(pair: DexTokenPair, source: TrackedToken["source"]):
     sells1h: pair.txns?.h1?.sells,
     txns24h: txnSum(pair.txns?.h24),
     dexId: pair.dexId,
-    twitterUrl: pickLink(socials, "twitter"),
+    twitterUrl: pickTwitterUrl(socials),
     telegramUrl: pickLink(socials, "telegram"),
     websiteUrl: pair.info?.websites?.[0]?.url,
     dexUrl: pair.url,
@@ -57,7 +58,7 @@ export function pairToToken(pair: DexTokenPair, source: TrackedToken["source"]):
     stage: "live",
     seenAt: Date.now(),
     source,
-  };
+  });
 }
 
 function bestPairs(pairs: DexTokenPair[]): DexTokenPair[] {
@@ -109,7 +110,7 @@ function mergeBoost(boost: DexBoost, pair?: DexTokenPair): TrackedToken {
   const links = [...(boost.links ?? []), ...(pair?.info?.socials ?? [])];
   const fromPair = pair ? pairToToken(pair, boost.amount != null ? "boost" : "profile") : undefined;
   const chainId = normalizeChain(boost.chainId);
-  const twitter = pickLink(links, "twitter") ?? fromPair?.twitterUrl;
+  const twitter = pickTwitterUrl(links, boost.description ?? undefined) ?? fromPair?.twitterUrl;
   const tweetId = firstTweetId(twitter, boost.description ?? undefined, fromPair?.description, fromPair?.websiteUrl);
   return {
     ...fromPair,
@@ -328,7 +329,7 @@ function pumpSocial(raw?: string, kind: "twitter" | "telegram" | "web" = "web"):
 function pumpToToken(coin: PumpCoin): TrackedToken {
   const twitter = pumpSocial(coin.twitter, "twitter");
   const tweetId = firstTweetId(twitter, coin.description, coin.website);
-  return {
+  return attachXTrail({
     id: `solana:${coin.mint}`,
     chainId: "solana",
     tokenAddress: coin.mint,
@@ -355,7 +356,7 @@ function pumpToToken(coin: PumpCoin): TrackedToken {
     stage: coin.complete ? "graduated" : "launching",
     seenAt: Date.now(),
     source: "launch",
-  };
+  });
 }
 
 export async function fetchPumpByMcap(limit = 16): Promise<TrackedToken[]> {
@@ -392,7 +393,7 @@ export async function fetchBagsLaunches(): Promise<TrackedToken[]> {
       const tweetId = firstTweetId(twitter, item.description, item.website ?? undefined);
       const pre = /pre|launch/i.test(item.status ?? "");
       return [
-        {
+        attachXTrail({
           id: `solana:${item.tokenMint}`,
           chainId: "solana",
           tokenAddress: item.tokenMint,
@@ -409,7 +410,7 @@ export async function fetchBagsLaunches(): Promise<TrackedToken[]> {
           stage: pre ? "launching" : "live",
           seenAt: Date.now(),
           source: "launch",
-        },
+        }),
       ];
     });
   } catch {
@@ -433,6 +434,39 @@ function num(value?: string | null): number | undefined {
   if (value == null || value === "") return undefined;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+export async function fillSocialsFromDex(tokens: TrackedToken[]): Promise<TrackedToken[]> {
+  const need = tokens.filter((token) => !hasXTrail(token)).slice(0, 40);
+  if (need.length === 0) return [];
+  const byChain = new Map<string, TrackedToken[]>();
+  for (const token of need) {
+    const list = byChain.get(token.chainId) ?? [];
+    list.push(token);
+    byChain.set(token.chainId, list);
+  }
+  const found: TrackedToken[] = [];
+  await Promise.all(
+    [...byChain.entries()].map(async ([chainId, items]) => {
+      const pairs = bestPairs(await fetchTokenPairs(chainId, items.map((item) => item.tokenAddress)));
+      const index = new Map(
+        pairs.map((pair) => [`${normalizeChain(pair.chainId)}:${pair.baseToken.address.toLowerCase()}`, pair]),
+      );
+      for (const item of items) {
+        const pair = index.get(`${normalizeChain(item.chainId)}:${item.tokenAddress.toLowerCase()}`);
+        if (!pair) continue;
+        const hydrated = pairToToken(pair, item.source);
+        if (!hasXTrail(hydrated)) continue;
+        found.push({
+          ...item,
+          ...hydrated,
+          id: item.id,
+          source: item.source,
+        });
+      }
+    }),
+  );
+  return found;
 }
 
 export async function lookupAddresses(addresses: string[]): Promise<TrackedToken[]> {
