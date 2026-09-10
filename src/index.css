@@ -51,7 +51,7 @@ img {
 }
 
 .app {
-  max-width: 1440px;
+  max-width: 1640px;
   margin: 0 auto;
   padding: 20px 20px 56px;
 }
@@ -179,8 +179,12 @@ img {
 
 .cards {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(248px, 1fr));
   gap: 12px;
+}
+
+.grid.open .cards {
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
 }
 
 .hidden-filters {
