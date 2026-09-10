@@ -8,8 +8,19 @@ export function defined<T extends Record<string, unknown>>(value: T): Partial<T>
   return next as Partial<T>;
 }
 
+const IGNORE_MERGE = new Set(["seenAt"]);
+
+export function tokenNeedsMerge(prev: TrackedToken, incoming: TrackedToken): boolean {
+  for (const [key, value] of Object.entries(incoming) as [keyof TrackedToken, TrackedToken[keyof TrackedToken]][]) {
+    if (value === undefined || IGNORE_MERGE.has(key)) continue;
+    if (prev[key] !== value) return true;
+  }
+  return false;
+}
+
 export function mergeToken(prev: TrackedToken | undefined, incoming: TrackedToken): TrackedToken {
   if (!prev) return { ...incoming, seenAt: incoming.seenAt ?? Date.now() };
+  if (!tokenNeedsMerge(prev, incoming)) return prev;
   return {
     ...prev,
     ...defined(incoming),
@@ -19,13 +30,18 @@ export function mergeToken(prev: TrackedToken | undefined, incoming: TrackedToke
 }
 
 export function mergeLists(prev: TrackedToken[], incoming: TrackedToken[], cap = 240): TrackedToken[] {
+  if (incoming.length === 0) return prev;
   const map = new Map(prev.map((token) => [token.id, token]));
-  const fresh: TrackedToken[] = [];
+  let changed = incoming.length > 0 && prev.length === 0;
   for (const token of incoming) {
     const before = map.get(token.id);
-    if (!before) fresh.push(token);
-    map.set(token.id, mergeToken(before, token));
+    const merged = mergeToken(before, token);
+    if (merged !== before) {
+      changed = true;
+      map.set(token.id, merged);
+    }
   }
+  if (!changed && map.size === prev.length) return prev;
   const merged = [...map.values()].sort(
     (a, b) => (b.pairCreatedAt ?? b.seenAt ?? 0) - (a.pairCreatedAt ?? a.seenAt ?? 0),
   );

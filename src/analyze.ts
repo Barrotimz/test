@@ -231,6 +231,39 @@ export function uniqueTokens(tokens: TrackedToken[]): TrackedToken[] {
   return [...map.values()];
 }
 
+export function indexAnalyses(
+  tokens: TrackedToken[],
+  brain: RunnerBrain,
+  rugs?: Record<string, RugReport>,
+): Map<string, TokenAnalysis> {
+  const map = new Map<string, TokenAnalysis>();
+  for (const token of tokens) {
+    map.set(token.id, analyzeToken(token, brain, rugs?.[token.id]));
+  }
+  return map;
+}
+
+export function listsByHeat(
+  tokens: TrackedToken[],
+  analyses: Map<string, TokenAnalysis>,
+): { hot: TrackedToken[]; warm: TrackedToken[]; trap: TrackedToken[] } {
+  const hot: TrackedToken[] = [];
+  const warm: TrackedToken[] = [];
+  const trap: TrackedToken[] = [];
+  for (const token of tokens) {
+    const heat = analyses.get(token.id)?.heat;
+    if (heat === "hot") hot.push(token);
+    else if (heat === "warm") warm.push(token);
+    else if (heat === "trap") trap.push(token);
+  }
+  const byScore = (a: TrackedToken, b: TrackedToken) =>
+    (analyses.get(b.id)?.score ?? 0) - (analyses.get(a.id)?.score ?? 0);
+  hot.sort(byScore);
+  warm.sort(byScore);
+  trap.sort(byScore);
+  return { hot, warm, trap };
+}
+
 export function pickByHeat(
   tokens: TrackedToken[],
   brain: RunnerBrain,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { analyzeToken, heatLane, heatRank, pickByHeat } from "./analyze";
+import { analyzeToken, heatLane, heatRank, indexAnalyses, listsByHeat, pickByHeat } from "./analyze";
 import { emptyBrain, learnFromTokens } from "./learn";
 import type { TrackedToken } from "./types";
 
@@ -125,5 +125,27 @@ describe("analyzeToken", () => {
     expect(pickByHeat([dump, token({ id: "solana:other" })], brain, "trap").map((row) => row.id)).toEqual([
       "solana:dump",
     ]);
+  });
+
+  it("indexes analysis once and groups heat lists from that map", () => {
+    const brain = emptyBrain();
+    const dump = token({
+      id: "solana:dump2",
+      change5m: -22,
+      change1h: -40,
+      buys1h: 8,
+      sells1h: 40,
+      volume1h: 9_000,
+    });
+    const fresh = token({
+      id: "solana:fresh2",
+      stage: "launching",
+      pairCreatedAt: Date.now() - 8 * 60_000,
+    });
+    const map = indexAnalyses([dump, fresh], brain);
+    expect(map.size).toBe(2);
+    const lists = listsByHeat([dump, fresh], map);
+    expect(lists.trap.map((row) => row.id)).toEqual(["solana:dump2"]);
+    expect(lists.hot).toHaveLength(0);
   });
 });

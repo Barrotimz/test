@@ -52,6 +52,8 @@ npm test
 npm run build
 ```
 
+The board analyzes each live coin once per update, skips no-op merges, and only paints the top 48 cards on a tab so the UI stays responsive while the sniffer keeps running.
+
 Dev mode proxies DexScreener, GeckoTerminal, RugCheck, GoPlus, and tweet-embed metrics through Vite to avoid browser CORS issues.
 
 ## Disclaimer

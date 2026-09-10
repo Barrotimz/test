@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   fetchBagsLaunches,
   fetchBoosts,
@@ -44,7 +44,14 @@ import {
   twitterHandle,
 } from "./format";
 import { DEFAULT_KOLS } from "./kols";
-import { analyzeToken, heatRank, pickAnalyzedRunners, pickByHeat, uniqueTokens } from "./analyze";
+import {
+  analyzeToken,
+  heatRank,
+  indexAnalyses,
+  listsByHeat,
+  uniqueTokens,
+  type TokenAnalysis,
+} from "./analyze";
 import { detectTodayMetas, metaForToken, metaSearchQueries, pickMetaCoins, type TodayMeta } from "./meta";
 import {
   brainInsights,
@@ -58,6 +65,10 @@ import type { FeedEvent, Kol, TabId, TrackedToken } from "./types";
 const WATCH_KEY = "xmeme-watchlist";
 const KOL_KEY = "xmeme-kols";
 const LEARN_KEY = "xmeme-runner-brain";
+const POLL_MS = 6500;
+const SOCIAL_MS = 7000;
+const SOCIAL_BATCH = 4;
+const BOARD_LIMIT = 48;
 const TABS: { id: TabId; label: string; heat?: boolean }[] = [
   { id: "trending", label: "Trending", heat: true },
   { id: "meta", label: "Today's meta", heat: true },
@@ -152,9 +163,16 @@ export default function App() {
   const brainRef = useRef(brain);
   brainRef.current = brain;
 
+  const pendingLearn = useRef<TrackedToken[]>([]);
+
   const patchToken = useCallback((id: string, extra: Partial<TrackedToken>) => {
-    const apply = (prev: TrackedToken[]) =>
-      prev.map((token) => (token.id === id ? { ...token, ...extra } : token));
+    const apply = (prev: TrackedToken[]) => {
+      const index = prev.findIndex((token) => token.id === id);
+      if (index === -1) return prev;
+      const next = prev.slice();
+      next[index] = { ...prev[index], ...extra };
+      return next;
+    };
     setLaunching(apply);
     setRadar(apply);
     setBoosts(apply);
@@ -169,7 +187,7 @@ export default function App() {
       const targets = tokens
         .filter((token) => needsSocialEnrichment(token) && !socialBusy.current.has(token.id))
         .sort((a, b) => socialPriority(a) - socialPriority(b))
-        .slice(0, 8);
+        .slice(0, SOCIAL_BATCH);
       await Promise.all(
         targets.map(async (token) => {
           socialBusy.current.add(token.id);
@@ -195,23 +213,8 @@ export default function App() {
       setSeen((count) => count + fresh.length);
     }
     setter((prev) => mergeLists(prev, incoming));
-    const learned = learnFromTokens(brainRef.current, incoming);
-    if (learned.fresh.length) {
-      brainRef.current = learned.brain;
-      setBrain(learned.brain);
-      setEvents((prev) =>
-        [
-          ...learned.fresh.map((lesson) => ({
-            id: `learn:${lesson.id}:${lesson.at}`,
-            at: lesson.at,
-            text: `LEARNED $${lesson.symbol} · ${lesson.why[0] ?? "rip"}`,
-          })),
-          ...prev,
-        ].slice(0, 24),
-      );
-    }
-    void pullTweetStats(incoming);
-  }, [pullTweetStats]);
+    pendingLearn.current.push(...incoming);
+  }, []);
 
   const refresh = useCallback(async () => {
     setError(null);
@@ -220,53 +223,46 @@ export default function App() {
     const net = GECKO_NETWORKS[geckoCursor.current % GECKO_NETWORKS.length];
     geckoCursor.current += 1;
     try {
-      const jobs: Promise<void>[] = [
-        fetchPumpNewest(48)
-          .then((rows) => ingest(rows, setLaunching))
-          .catch(() => undefined),
-        fetchBagsLaunches()
-          .then((rows) => ingest(rows, setLaunching))
-          .catch(() => undefined),
-        fetchGeckoPools(tick % 2 === 0 ? "bsc" : "robinhood", "new_pools").then((rows) => {
-          ingest(rows, setLaunching);
-          ingest(rows, setTrending);
-        }),
-        fetchGeckoGlobal("new_pools", tick % 2 === 0 ? 1 : 2).then((rows) => {
-          ingest(rows, setLaunching);
-          ingest(rows, setTrending);
-          const needDepth = rows.length === 0 || tick % 2 === 1;
-          if (needDepth && net) {
-            return fetchGeckoPools(net, "new_pools").then((depth) => {
-              ingest(depth, setLaunching);
-              ingest(depth, setTrending);
-            });
-          }
-        }),
-      ];
+      const jobs: Promise<void>[] = [];
       if (tick % 2 === 0) {
-        jobs.push(fetchPumpHottest(24).then((rows) => ingest(rows, setLaunching)).catch(() => undefined));
-        jobs.push(fetchGeckoGlobal("trending_pools").then((rows) => ingest(rows, setTrending)));
+        jobs.push(fetchPumpNewest(32).then((rows) => ingest(rows, setLaunching)).catch(() => undefined));
+      } else {
+        jobs.push(fetchBagsLaunches().then((rows) => ingest(rows, setLaunching)).catch(() => undefined));
       }
-      if (tick % 5 === 0) {
+      if (tick % 2 === 0) {
         jobs.push(
-          fetchPumpByMcap(20)
-            .then((rows) => ingest(rows, setTrending))
-            .catch(() => undefined),
+          fetchGeckoGlobal("new_pools", tick % 4 === 0 ? 1 : 2).then((rows) => {
+            ingest(rows, setLaunching);
+          }),
+        );
+      } else {
+        jobs.push(
+          fetchGeckoPools(tick % 4 === 1 ? "bsc" : "robinhood", "new_pools").then((rows) => {
+            ingest(rows, setLaunching);
+          }),
         );
       }
-      if (tick % 3 === 1) {
+      if (tick % 4 === 0) {
+        jobs.push(fetchPumpHottest(20).then((rows) => ingest(rows, setLaunching)).catch(() => undefined));
+      }
+      if (tick % 4 === 2) {
+        jobs.push(fetchGeckoGlobal("trending_pools").then((rows) => ingest(rows, setTrending)));
+      }
+      if (tick % 6 === 0) {
+        jobs.push(fetchPumpByMcap(16).then((rows) => ingest(rows, setTrending)).catch(() => undefined));
+      }
+      if (tick % 4 === 1) {
         const bag = uniqueTokens(Object.values(bagsRef.current).flat());
         const queries = metaSearchQueries(detectTodayMetas(bag, brainRef.current.lessons));
-        const query = queries[Math.floor(tick / 3) % Math.max(queries.length, 1)];
+        const query = queries[Math.floor(tick / 4) % Math.max(queries.length, 1)];
         if (query) {
-          jobs.push(
-            searchTokens(query)
-              .then((rows) => ingest(rows, setTrending))
-              .catch(() => undefined),
-          );
+          jobs.push(searchTokens(query).then((rows) => ingest(rows, setTrending)).catch(() => undefined));
         }
       }
-      if (tick % 2 === 1) {
+      if (tick % 8 === 5 && net) {
+        jobs.push(fetchGeckoPools(net, "new_pools").then((rows) => ingest(rows, setLaunching)));
+      }
+      if (tick % 4 === 3) {
         jobs.push(
           (async () => {
             const [latestBoosts, topBoosts, profiles] = await Promise.all([
@@ -282,8 +278,8 @@ export default function App() {
               );
             });
             const [radarTokens, boostTokens] = await Promise.all([
-              hydrateBoosts(socialish.slice(0, 48), "profile"),
-              hydrateBoosts(topBoosts.slice(0, 36), "boost"),
+              hydrateBoosts(socialish.slice(0, 24), "profile"),
+              hydrateBoosts(topBoosts.slice(0, 20), "boost"),
             ]);
             ingest(radarTokens, setRadar);
             ingest(boostTokens, setBoosts);
@@ -291,6 +287,24 @@ export default function App() {
         );
       }
       await Promise.allSettled(jobs);
+      if (pendingLearn.current.length) {
+        const learned = learnFromTokens(brainRef.current, pendingLearn.current);
+        pendingLearn.current = [];
+        if (learned.fresh.length) {
+          brainRef.current = learned.brain;
+          setBrain(learned.brain);
+          setEvents((prev) =>
+            [
+              ...learned.fresh.map((lesson) => ({
+                id: `learn:${lesson.id}:${lesson.at}`,
+                at: lesson.at,
+                text: `LEARNED $${lesson.symbol} · ${lesson.why[0] ?? "rip"}`,
+              })),
+              ...prev,
+            ].slice(0, 24),
+          );
+        }
+      }
       setUpdatedAt(Date.now());
       setStatus("ok");
     } catch (err) {
@@ -304,7 +318,7 @@ export default function App() {
     const loop = async () => {
       while (alive) {
         await refresh();
-        await new Promise((resolve) => setTimeout(resolve, 4000));
+        await new Promise((resolve) => setTimeout(resolve, POLL_MS));
       }
     };
     void loop();
@@ -321,9 +335,9 @@ export default function App() {
         const need = bag
           .filter((token) => needsSocialEnrichment(token) && !socialBusy.current.has(token.id))
           .sort((a, b) => socialPriority(a) - socialPriority(b))
-          .slice(0, 8);
+          .slice(0, SOCIAL_BATCH);
         await pullTweetStats(need);
-        await new Promise((resolve) => setTimeout(resolve, 3500));
+        await new Promise((resolve) => setTimeout(resolve, SOCIAL_MS));
       }
     };
     void loop();
@@ -363,14 +377,14 @@ export default function App() {
     }
   }
 
-  function toggleWatch(token: TrackedToken) {
+  const toggleWatch = useCallback((token: TrackedToken) => {
     setWatch((current) => {
       const exists = current.some((item) => item.id === token.id);
       return exists ? current.filter((item) => item.id !== token.id) : [token, ...current];
     });
-  }
+  }, []);
 
-  async function runRugCheck(token: TrackedToken) {
+  const runRugCheck = useCallback(async (token: TrackedToken) => {
     setRugBusy((current) => ({ ...current, [token.id]: true }));
     setRugError((current) => {
       const next = { ...current };
@@ -388,7 +402,7 @@ export default function App() {
     } finally {
       setRugBusy((current) => ({ ...current, [token.id]: false }));
     }
-  }
+  }, []);
 
   async function scanContracts() {
     setStatus("busy");
@@ -419,27 +433,40 @@ export default function App() {
     }
   }
 
-  const watchedIds = new Set(watch.map((item) => item.id));
+  const watchedIds = useMemo(() => new Set(watch.map((item) => item.id)), [watch]);
   const allLive = useMemo(
     () => uniqueTokens([...launching, ...radar, ...boosts, ...trending]),
     [launching, radar, boosts, trending],
   );
-  const analysisOf = useCallback(
-    (token: TrackedToken) => analyzeToken(token, brain, rugs[token.id]),
-    [brain, rugs],
-  );
-  const hotList = useMemo(() => pickByHeat(allLive, brain, "hot", analysisOf), [allLive, brain, analysisOf]);
-  const warmList = useMemo(() => pickByHeat(allLive, brain, "warm", analysisOf), [allLive, brain, analysisOf]);
-  const coolingList = useMemo(() => pickByHeat(allLive, brain, "trap", analysisOf), [allLive, brain, analysisOf]);
+  const analyses = useMemo(() => indexAnalyses(allLive, brain, rugs), [allLive, brain, rugs]);
+  const heatLists = useMemo(() => listsByHeat(allLive, analyses), [allLive, analyses]);
+  const hotList = heatLists.hot;
+  const warmList = heatLists.warm;
+  const coolingList = heatLists.trap;
   const todayMetas = useMemo(() => detectTodayMetas(allLive, brain.lessons), [allLive, brain.lessons]);
   const activeMetas = useMemo(
     () => (metaFilter === "all" ? todayMetas : todayMetas.filter((meta) => meta.id === metaFilter)),
     [todayMetas, metaFilter],
   );
   const metaList = useMemo(() => pickMetaCoins(allLive, activeMetas), [allLive, activeMetas]);
+  const learnList = useMemo(
+    () =>
+      allLive
+        .filter((token) => {
+          const row = analyses.get(token.id);
+          return row && (row.verdict === "strong" || (row.verdict === "mixed" && row.call.level !== "watch"));
+        })
+        .sort((a, b) => (analyses.get(b.id)?.score ?? 0) - (analyses.get(a.id)?.score ?? 0))
+        .slice(0, 24),
+    [allLive, analyses],
+  );
   const leadMeta = todayMetas[0];
-  const visible = sortTokens(
-    pickTokens(tab, {
+  const analysisOf = useCallback(
+    (token: TrackedToken) => analyses.get(token.id) ?? analyzeToken(token, brain, rugs[token.id]),
+    [analyses, brain, rugs],
+  );
+  const filtered = useMemo(() => {
+    const picked = pickTokens(tab, {
       launch: launching,
       radar,
       boosts,
@@ -449,9 +476,13 @@ export default function App() {
       scanned,
       query,
       brain,
-      analyze: analysisOf,
       metaCoins: metaList,
-    }).filter((token) => {
+      hot: hotList,
+      warm: warmList,
+      cooling: coolingList,
+      learn: learnList,
+    });
+    return picked.filter((token) => {
       if (enabledChains.length > 0 && enabledChains.length !== CHAINS.length) {
         if (!enabledChains.includes(normalizeChain(token.chainId))) return false;
       }
@@ -464,18 +495,45 @@ export default function App() {
       if (!needle || (tab === "radar" && searchHits.length)) return true;
       const hay = `${token.symbol} ${token.name} ${token.tokenAddress} ${token.chainId} ${token.launchpad ?? ""} ${token.twitterHandle ?? ""}`.toLowerCase();
       return hay.includes(needle);
-    }),
-    tab === "learn"
-      ? "learn"
-      : tab === "meta"
-        ? "keep"
-        : tab === "hot" || tab === "warm" || tab === "cooling"
-          ? "heat"
-          : sortMode,
+    });
+  }, [
+    tab,
+    launching,
+    radar,
+    boosts,
+    trending,
+    watch,
+    searchHits,
+    scanned,
+    query,
     brain,
-    analysisOf,
+    metaList,
+    hotList,
+    warmList,
+    coolingList,
+    learnList,
+    enabledChains,
+    ageFilter,
+    socialFilter,
+    padFilter,
+  ]);
+  const ranked = useMemo(
+    () =>
+      sortTokens(
+        filtered,
+        tab === "learn" || tab === "meta" || tab === "hot" || tab === "warm" || tab === "cooling"
+          ? "keep"
+          : sortMode,
+        brain,
+        analysisOf,
+      ),
+    [filtered, tab, sortMode, brain, analysisOf],
   );
-  const opened = visible.find((token) => token.id === openId) ?? launching.find((token) => token.id === openId);
+  const visible = ranked.slice(0, BOARD_LIMIT);
+  const opened =
+    allLive.find((token) => token.id === openId) ??
+    watch.find((token) => token.id === openId) ??
+    scanned.find((token) => token.id === openId);
 
   return (
     <div className="app">
@@ -850,23 +908,28 @@ export default function App() {
                             : "Nothing here yet. Try a search or another tab."}
             </p>
           ) : (
+            <>
+            {ranked.length > visible.length && (
+              <p className="empty">Showing {visible.length} of {ranked.length} — sorted to the top of this tab.</p>
+            )}
             <div className="cards">
               {visible.map((token) => (
                 <TokenCard
                   key={`${tab}-${token.id}`}
                   token={token}
                   watched={watchedIds.has(token.id)}
-                  onWatch={() => toggleWatch(token)}
-                  onOpen={() => setOpenId(token.id)}
+                  onWatch={toggleWatch}
+                  onOpen={setOpenId}
                   rug={rugs[token.id]}
                   rugBusy={Boolean(rugBusy[token.id])}
                   rugError={rugError[token.id]}
-                  onRugCheck={() => void runRugCheck(token)}
+                  onRugCheck={runRugCheck}
                   analysis={analysisOf(token)}
                   meta={metaForToken(token, todayMetas)}
                 />
               ))}
             </div>
+            </>
           )}
         </section>
 
@@ -1122,18 +1185,20 @@ function pickTokens(
     scanned: TrackedToken[];
     query: string;
     brain: RunnerBrain;
-    analyze: (token: TrackedToken) => ReturnType<typeof analyzeToken>;
     metaCoins: TrackedToken[];
+    hot: TrackedToken[];
+    warm: TrackedToken[];
+    cooling: TrackedToken[];
+    learn: TrackedToken[];
   },
 ): TrackedToken[] {
-  const live = [...bags.launch, ...bags.radar, ...bags.trending, ...bags.boosts];
   if (tab === "scanner") return bags.scanned;
   if (tab === "kols") return [];
-  if (tab === "learn") return pickAnalyzedRunners(live, bags.brain);
+  if (tab === "learn") return bags.learn;
   if (tab === "meta") return bags.metaCoins;
-  if (tab === "hot") return pickByHeat(live, bags.brain, "hot", bags.analyze);
-  if (tab === "warm") return pickByHeat(live, bags.brain, "warm", bags.analyze);
-  if (tab === "cooling") return pickByHeat(live, bags.brain, "trap", bags.analyze);
+  if (tab === "hot") return bags.hot;
+  if (tab === "warm") return bags.warm;
+  if (tab === "cooling") return bags.cooling;
   if (tab === "watch") return bags.watch;
   if (tab === "boosts") return bags.boosts;
   if (tab === "trending") return bags.trending;
@@ -1292,7 +1357,7 @@ function TweetPulse({ token, compact = false }: { token: TrackedToken; compact?:
   );
 }
 
-function TokenCard({
+const TokenCard = memo(function TokenCard({
   token,
   watched,
   onWatch,
@@ -1306,13 +1371,13 @@ function TokenCard({
 }: {
   token: TrackedToken;
   watched: boolean;
-  onWatch: () => void;
-  onOpen: () => void;
+  onWatch: (token: TrackedToken) => void;
+  onOpen: (id: string) => void;
   rug?: RugReport;
   rugBusy: boolean;
   rugError?: string;
-  onRugCheck: () => void;
-  analysis: ReturnType<typeof analyzeToken>;
+  onRugCheck: (token: TrackedToken) => void;
+  analysis: TokenAnalysis;
   meta?: TodayMeta;
 }) {
   const [imgOk, setImgOk] = useState(true);
@@ -1320,7 +1385,7 @@ function TokenCard({
   const change = token.change1h ?? token.change24h;
   const ageBucket = coinAgeBucket(token.pairCreatedAt);
   return (
-    <article className="card compact-card" onClick={onOpen}>
+    <article className="card compact-card" onClick={() => onOpen(token.id)}>
       <div className="card-head">
         {imgOk && token.imageUrl ? (
           <img className="avatar" src={token.imageUrl} alt="" onError={() => setImgOk(false)} />
@@ -1386,16 +1451,16 @@ function TokenCard({
           Chart
         </a>
         <TradeButtons token={token} />
-        <button className="mini" onClick={onWatch}>
+        <button className="mini" onClick={() => onWatch(token)}>
           {watched ? "Unwatch" : "Watch"}
         </button>
-        <button className="mini rug" onClick={onRugCheck} disabled={rugBusy}>
+        <button className="mini rug" onClick={() => void onRugCheck(token)} disabled={rugBusy}>
           {rugBusy ? "…" : "Rug"}
         </button>
       </div>
     </article>
   );
-}
+});
 
 function TweetCard({ tweet }: { tweet: TweetAttraction }) {
   return (

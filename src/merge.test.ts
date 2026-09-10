@@ -29,6 +29,12 @@ describe("mergeLists", () => {
     expect(second[0].marketCap).toBe(12_000);
   });
 
+  it("returns the same list when a later poll has no new fields", () => {
+    const first = mergeLists([], [token("a", { marketCap: 12_000, change1h: 8 })]);
+    const second = mergeLists(first, [token("a", { marketCap: 12_000, change1h: 8, seenAt: Date.now() })]);
+    expect(second).toBe(first);
+  });
+
   it("emits feed events only for first sightings", () => {
     const known = new Set(["a"]);
     const events = eventsForNew([token("a"), token("b", { symbol: "NEW", stage: "launching" })], known);
