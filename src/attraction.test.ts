@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { scoreTokenHype, scoreTweetAttraction } from "./attraction";
+import { needsSocialEnrichment, scoreTokenHype, scoreTweetAttraction, socialPriority } from "./attraction";
 import type { TrackedToken } from "./types";
 
 const baseToken: TrackedToken = {
@@ -30,6 +30,19 @@ describe("scoreTweetAttraction", () => {
 
   it("treats a mid-size KOL post as warming even with few likes", () => {
     expect(scoreTweetAttraction({ likes: 8, retweets: 1, followers: 80_000 }).level).toBe("warming");
+  });
+});
+
+describe("social queue", () => {
+  it("prioritizes attached posts that still need likes", () => {
+    const pending = {
+      ...baseToken,
+      twitterUrl: "https://x.com/jack/status/20",
+    };
+    const done = { ...pending, tweetLikes: 12, socialCheckedAt: Date.now() };
+    expect(socialPriority(pending)).toBeLessThan(socialPriority({ ...baseToken, twitterUrl: "https://x.com/jack" }));
+    expect(needsSocialEnrichment(pending)).toBe(true);
+    expect(needsSocialEnrichment(done)).toBe(false);
   });
 });
 

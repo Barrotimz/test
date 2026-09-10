@@ -398,6 +398,56 @@ img {
   color: var(--cyan);
 }
 
+.tweet-pulse {
+  background: #0c2430;
+  border: 1px solid #1d4d63;
+  border-radius: 12px;
+  padding: 8px 10px;
+}
+
+.tweet-pulse.empty,
+.tweet-pulse.pending,
+.tweet-pulse.profile {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.tweet-pulse.pending {
+  color: var(--cyan);
+}
+
+.tweet-pulse-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--cyan);
+  margin-bottom: 6px;
+}
+
+.tweet-pulse-head span,
+.tweet-pulse.profile span {
+  color: var(--muted);
+}
+
+.tweet-pulse-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+}
+
+.tweet-pulse-stats span {
+  display: block;
+  color: var(--muted);
+  margin-bottom: 2px;
+}
+
+.tweet-pulse-stats strong {
+  color: var(--text);
+}
+
 .desc {
   color: #c6d8d6;
   font-size: 13px;

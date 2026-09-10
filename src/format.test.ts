@@ -1,5 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { coinAgeBucket, coinAgeLabel, toMillis } from "./format";
+import { coinAgeBucket, coinAgeLabel, toMillis, tweetInteractions } from "./format";
+
+describe("tweetInteractions", () => {
+  it("sums likes, RTs, replies, quotes, and bookmarks", () => {
+    expect(
+      tweetInteractions({
+        tweetLikes: 100,
+        tweetRetweets: 20,
+        tweetReplies: 8,
+        tweetQuotes: 5,
+        tweetBookmarks: 7,
+      }),
+    ).toBe(140);
+  });
+
+  it("stays empty when no tweet stats exist", () => {
+    expect(tweetInteractions({})).toBeUndefined();
+  });
+});
 
 describe("coin age", () => {
   const now = 1_780_000_000_000;

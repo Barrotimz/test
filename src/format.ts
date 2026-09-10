@@ -1,3 +1,28 @@
+export function tweetInteractions(token: {
+  tweetLikes?: number;
+  tweetRetweets?: number;
+  tweetReplies?: number;
+  tweetQuotes?: number;
+  tweetBookmarks?: number;
+}): number | undefined {
+  if (
+    token.tweetLikes == null &&
+    token.tweetRetweets == null &&
+    token.tweetReplies == null &&
+    token.tweetQuotes == null &&
+    token.tweetBookmarks == null
+  ) {
+    return undefined;
+  }
+  return (
+    (token.tweetLikes ?? 0) +
+    (token.tweetRetweets ?? 0) +
+    (token.tweetReplies ?? 0) +
+    (token.tweetQuotes ?? 0) +
+    (token.tweetBookmarks ?? 0)
+  );
+}
+
 export function compactCount(value?: number | null): string {
   if (value == null || Number.isNaN(value)) return "—";
   const abs = Math.abs(value);

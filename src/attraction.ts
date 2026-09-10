@@ -177,12 +177,26 @@ export async function enrichTokenSocial(token: TrackedToken): Promise<Partial<Tr
   };
 }
 
+export function hasTweetPost(token: TrackedToken): boolean {
+  return Boolean(firstTweetId(token.twitterUrl, token.tweetUrl, token.websiteUrl, token.description));
+}
+
 export function needsSocialEnrichment(token: TrackedToken, now = Date.now()): boolean {
-  if (!token.twitterUrl && !token.tweetUrl && !firstTweetId(token.description, token.websiteUrl)) {
-    return false;
-  }
-  if (token.socialCheckedAt && now - token.socialCheckedAt < 90_000) return false;
-  return token.tweetLikes == null && token.twitterFollowers == null;
+  const posted = hasTweetPost(token);
+  const handle = twitterHandle(token.twitterUrl) ?? token.twitterHandle;
+  if (!posted && !handle) return false;
+  if (!token.socialCheckedAt) return true;
+  const age = now - token.socialCheckedAt;
+  if (posted && token.tweetLikes == null) return age > 12_000;
+  if (posted) return age > 90_000;
+  if (token.twitterFollowers == null) return age > 12_000;
+  return false;
+}
+
+export function socialPriority(token: TrackedToken): number {
+  if (hasTweetPost(token) && token.tweetLikes == null) return 0;
+  if (hasTweetPost(token)) return 1;
+  return 2;
 }
 
 export async function fetchTweetAttraction(id: string): Promise<TweetAttraction> {

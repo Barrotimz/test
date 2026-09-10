@@ -15,8 +15,10 @@ import { eventsForNew, mergeLists } from "./merge";
 import {
   enrichTokenSocial,
   fetchTweetAttractions,
+  hasTweetPost,
   needsSocialEnrichment,
   scoreTokenHype,
+  socialPriority,
   type TweetAttraction,
 } from "./attraction";
 import { checkTokenRug, type RugReport } from "./rug";
@@ -33,6 +35,7 @@ import {
   shortAddress,
   toMillis,
   tokenSearchQuery,
+  tweetInteractions,
   twitterHandle,
 } from "./format";
 import { DEFAULT_KOLS } from "./kols";
@@ -92,6 +95,7 @@ export default function App() {
 
   const knownIds = useRef(new Set<string>());
   const cycle = useRef(0);
+  const socialBusy = useRef(new Set<string>());
   const bagsRef = useRef({ launching, radar, boosts, trending, watch });
   bagsRef.current = { launching, radar, boosts, trending, watch };
 
@@ -107,6 +111,28 @@ export default function App() {
     setSearchHits(apply);
   }, []);
 
+  const pullTweetStats = useCallback(
+    async (tokens: TrackedToken[]) => {
+      const targets = tokens
+        .filter((token) => needsSocialEnrichment(token) && !socialBusy.current.has(token.id))
+        .sort((a, b) => socialPriority(a) - socialPriority(b))
+        .slice(0, 8);
+      await Promise.all(
+        targets.map(async (token) => {
+          socialBusy.current.add(token.id);
+          try {
+            patchToken(token.id, await enrichTokenSocial(token));
+          } catch {
+            patchToken(token.id, { socialCheckedAt: Date.now() });
+          } finally {
+            socialBusy.current.delete(token.id);
+          }
+        }),
+      );
+    },
+    [patchToken],
+  );
+
   const ingest = useCallback((incoming: TrackedToken[], setter: (fn: (prev: TrackedToken[]) => TrackedToken[]) => void) => {
     if (incoming.length === 0) return;
     const fresh = eventsForNew(incoming, knownIds.current);
@@ -116,7 +142,8 @@ export default function App() {
       setSeen((count) => count + fresh.length);
     }
     setter((prev) => mergeLists(prev, incoming));
-  }, []);
+    void pullTweetStats(incoming);
+  }, [pullTweetStats]);
 
   const refresh = useCallback(async () => {
     setError(null);
@@ -195,24 +222,19 @@ export default function App() {
     const loop = async () => {
       while (alive) {
         const bag = Object.values(bagsRef.current).flat();
-        const need = bag.filter((token) => needsSocialEnrichment(token)).slice(0, 4);
-        await Promise.all(
-          need.map(async (token) => {
-            try {
-              patchToken(token.id, await enrichTokenSocial(token));
-            } catch {
-              patchToken(token.id, { socialCheckedAt: Date.now() });
-            }
-          }),
-        );
-        await new Promise((resolve) => setTimeout(resolve, 5500));
+        const need = bag
+          .filter((token) => needsSocialEnrichment(token) && !socialBusy.current.has(token.id))
+          .sort((a, b) => socialPriority(a) - socialPriority(b))
+          .slice(0, 8);
+        await pullTweetStats(need);
+        await new Promise((resolve) => setTimeout(resolve, 3500));
       }
     };
     void loop();
     return () => {
       alive = false;
     };
-  }, [patchToken]);
+  }, [pullTweetStats]);
 
   useEffect(() => {
     localStorage.setItem(WATCH_KEY, JSON.stringify(watch));
@@ -376,8 +398,8 @@ export default function App() {
         <p>
           Launching watches pump.fun bonding-curve coins and the newest pools across every
           GeckoTerminal network, including BNB and Robinhood. The board refreshes every 4 seconds
-          and never wipes. If a coin posts an X status link we pull likes, RTs, quotes, replies,
-          views, and follower count automatically. Profile-only links still get follower counts.
+          and never wipes. When a coin attaches an X post we pull likes, RTs, quotes, replies,
+          views, and total interactions onto the card so you do not have to open Twitter.
         </p>
       </div>
 
@@ -688,6 +710,7 @@ export default function App() {
                   {opened.bondingPct != null ? `${opened.bondingPct}%` : "—"}
                 </div>
               </div>
+              <TweetPulse token={opened} />
               {opened.tweetText && <p className="desc">{opened.tweetText}</p>}
               <p className="sub">
                 {opened.username ? `@${opened.username}` : ""}
@@ -826,7 +849,7 @@ function sortTokens(tokens: TrackedToken[], mode: "newest" | "hype" | "likes"): 
   if (mode === "newest") {
     copy.sort((a, b) => (toMillis(b.pairCreatedAt) ?? 0) - (toMillis(a.pairCreatedAt) ?? 0));
   } else if (mode === "likes") {
-    copy.sort((a, b) => (b.tweetLikes ?? -1) - (a.tweetLikes ?? -1));
+    copy.sort((a, b) => (b.tweetLikes ?? -1) - (a.tweetLikes ?? -1) || (tweetInteractions(b) ?? -1) - (tweetInteractions(a) ?? -1));
   } else {
     copy.sort((a, b) => scoreTokenHype(b).score - scoreTokenHype(a).score);
   }
@@ -834,7 +857,67 @@ function sortTokens(tokens: TrackedToken[], mode: "newest" | "hype" | "likes"): 
 }
 
 function xUrl(token: TrackedToken): string {
-  return token.twitterUrl || liveSearchUrl(tokenSearchQuery(token.symbol, token.tokenAddress));
+  return token.tweetUrl || token.twitterUrl || liveSearchUrl(tokenSearchQuery(token.symbol, token.tokenAddress));
+}
+
+function TweetPulse({ token }: { token: TrackedToken }) {
+  const handle = token.twitterHandle ?? twitterHandle(token.twitterUrl);
+  const interactions = tweetInteractions(token);
+  const posted = hasTweetPost(token) || token.tweetLikes != null;
+  if (!posted && !handle && !token.twitterUrl) {
+    return <div className="tweet-pulse empty">No X post attached yet</div>;
+  }
+  if (posted && token.tweetLikes == null && !token.socialCheckedAt) {
+    return (
+      <div className="tweet-pulse pending">
+        Pulling likes and interactions from X{handle ? ` · @${handle}` : ""}…
+      </div>
+    );
+  }
+  if (!posted) {
+    return (
+      <div className="tweet-pulse profile">
+        <b>X profile</b>
+        <span>
+          {handle ? `@${handle}` : "linked"} · {compactCount(token.twitterFollowers)} followers · no post link
+        </span>
+      </div>
+    );
+  }
+  return (
+    <div className="tweet-pulse">
+      <div className="tweet-pulse-head">
+        <b>X post</b>
+        <span>{handle ? `@${handle}` : "attached"}</span>
+      </div>
+      <div className="tweet-pulse-stats">
+        <div>
+          <span>Likes</span>
+          <strong>{compactCount(token.tweetLikes)}</strong>
+        </div>
+        <div>
+          <span>Interactions</span>
+          <strong>{compactCount(interactions)}</strong>
+        </div>
+        <div>
+          <span>RTs</span>
+          <strong>{compactCount(token.tweetRetweets)}</strong>
+        </div>
+        <div>
+          <span>Replies</span>
+          <strong>{compactCount(token.tweetReplies)}</strong>
+        </div>
+        <div>
+          <span>Quotes</span>
+          <strong>{compactCount(token.tweetQuotes)}</strong>
+        </div>
+        <div>
+          <span>Views</span>
+          <strong>{compactCount(token.tweetViews)}</strong>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function TokenCard({
@@ -886,6 +969,7 @@ function TokenCard({
         {rug && <span className={`badge ${rug.level}`}>{rug.level}</span>}
       </div>
       {token.description && <div className="desc">{token.description}</div>}
+      <TweetPulse token={token} />
       <div className="metrics">
         <div>
           <span>Price</span>
@@ -920,28 +1004,8 @@ function TokenCard({
           {compactCount(token.sells1h)}
         </div>
         <div>
-          <span>Replies</span>
+          <span>Pump replies</span>
           {compactCount(token.replies)}
-        </div>
-        <div>
-          <span>Likes</span>
-          {compactCount(token.tweetLikes)}
-        </div>
-        <div>
-          <span>RTs</span>
-          {compactCount(token.tweetRetweets)}
-        </div>
-        <div>
-          <span>Views</span>
-          {compactCount(token.tweetViews)}
-        </div>
-        <div>
-          <span>Followers</span>
-          {compactCount(token.twitterFollowers)}
-        </div>
-        <div>
-          <span>Quotes</span>
-          {compactCount(token.tweetQuotes)}
         </div>
       </div>
       {token.bondingPct != null && token.stage === "launching" && (
