@@ -1,4 +1,4 @@
-import { geckoNetworkId, normalizeChain } from "./chains";
+import { geckoNetworkId, normalizeChain, normalizeTokenAddress, tokenId } from "./chains";
 import { launchpadFromDex } from "./launchpads";
 import { firstTweetId } from "./extract";
 import { tokenImage, twitterHandle } from "./format";
@@ -29,10 +29,11 @@ function txnSum(side?: { buys?: number; sells?: number }): number | undefined {
 export function pairToToken(pair: DexTokenPair, source: TrackedToken["source"]): TrackedToken {
   const socials = pair.info?.socials ?? [];
   const chainId = normalizeChain(pair.chainId);
+  const tokenAddress = normalizeTokenAddress(chainId, pair.baseToken.address);
   return attachXTrail({
-    id: `${chainId}:${pair.baseToken.address}`,
+    id: tokenId(chainId, tokenAddress),
     chainId,
-    tokenAddress: pair.baseToken.address,
+    tokenAddress,
     name: pair.baseToken.name,
     symbol: pair.baseToken.symbol,
     imageUrl: pair.info?.imageUrl,
@@ -202,6 +203,7 @@ function mergeBoost(boost: DexBoost, pair?: DexTokenPair): TrackedToken {
   const links = [...(boost.links ?? []), ...(pair?.info?.socials ?? [])];
   const fromPair = pair ? pairToToken(pair, boost.amount != null ? "boost" : "profile") : undefined;
   const chainId = normalizeChain(boost.chainId);
+  const tokenAddress = normalizeTokenAddress(chainId, boost.tokenAddress);
   const twitter = pickTwitterUrl(
     links,
     boost.description ?? undefined,
@@ -210,19 +212,19 @@ function mergeBoost(boost: DexBoost, pair?: DexTokenPair): TrackedToken {
   const tweetId = firstTweetId(twitter, boost.description ?? undefined, fromPair?.description, fromPair?.websiteUrl);
   return {
     ...fromPair,
-    id: `${chainId}:${boost.tokenAddress}`,
+    id: tokenId(chainId, tokenAddress),
     chainId,
-    tokenAddress: boost.tokenAddress,
+    tokenAddress,
     name: fromPair?.name ?? shortName(boost.tokenAddress),
     symbol: fromPair?.symbol ?? "???",
     description: boost.description ?? fromPair?.description,
-    imageUrl: tokenImage(chainId, boost.tokenAddress, fromPair?.imageUrl ?? boost.icon ?? undefined),
+    imageUrl: tokenImage(chainId, tokenAddress, fromPair?.imageUrl ?? boost.icon ?? undefined),
     boostAmount: boost.totalAmount ?? boost.amount ?? fromPair?.boostAmount,
     twitterUrl: twitter,
     telegramUrl: pickLink(links, "telegram") ?? fromPair?.telegramUrl,
     websiteUrl:
       links.find((link) => !link.type || link.type === "website")?.url ?? fromPair?.websiteUrl,
-    dexUrl: boost.url ?? fromPair?.dexUrl ?? `https://dexscreener.com/${chainId}/${boost.tokenAddress}`,
+    dexUrl: boost.url ?? fromPair?.dexUrl ?? `https://dexscreener.com/${chainId}/${tokenAddress}`,
     pairCreatedAt: fromPair?.pairCreatedAt,
     tweetUrl: tweetId ? `https://x.com/i/web/status/${tweetId}` : fromPair?.tweetUrl,
     twitterHandle: twitterHandle(twitter) ?? fromPair?.twitterHandle,
@@ -295,25 +297,41 @@ type GeckoIncluded = {
   };
 };
 
+export function geckoBaseMint(
+  pool: GeckoPool,
+  network: string,
+  included?: Map<string, GeckoIncluded>,
+): string | undefined {
+  const relId = pool.relationships?.base_token?.data?.id ?? "";
+  const meta = relId ? included?.get(relId) : undefined;
+  if (meta?.attributes?.address) return meta.attributes.address;
+  const net = geckoNetworkId(pool.id, pool.relationships?.network?.data?.id ?? network);
+  const prefix = `${net}_`;
+  if (relId.startsWith(prefix)) {
+    const mint = relId.slice(prefix.length);
+    if (mint && mint !== pool.attributes.address) return mint;
+  }
+  return undefined;
+}
+
 function geckoToToken(
   pool: GeckoPool,
   network: string,
   source: TrackedToken["source"],
   included?: Map<string, GeckoIncluded>,
-): TrackedToken {
-  const tokenId = pool.relationships?.base_token?.data?.id ?? "";
-  const meta = tokenId ? included?.get(tokenId) : undefined;
-  const tokenAddress =
-    meta?.attributes?.address ||
-    (tokenId.includes("_") ? tokenId.slice(tokenId.indexOf("_") + 1) : pool.attributes.address);
+): TrackedToken | undefined {
+  const raw = geckoBaseMint(pool, network, included);
+  if (!raw) return undefined;
+  const chainId = normalizeChain(network === "eth" ? "ethereum" : network);
+  const tokenAddress = normalizeTokenAddress(chainId, raw);
+  const meta = included?.get(pool.relationships?.base_token?.data?.id ?? "");
   const [fallbackName, fallbackSymbol] = splitPoolName(pool.attributes.name);
   const name = meta?.attributes?.name || fallbackName;
   const symbol = (meta?.attributes?.symbol || fallbackSymbol).replace(/^\$/, "");
-  const chainId = normalizeChain(network === "eth" ? "ethereum" : network);
   const created = pool.attributes.pool_created_at ? Date.parse(pool.attributes.pool_created_at) : undefined;
   const ageMs = created ? Date.now() - created : undefined;
   return {
-    id: `${chainId}:${tokenAddress}`,
+    id: tokenId(chainId, tokenAddress),
     chainId,
     tokenAddress,
     name,
@@ -352,10 +370,12 @@ function mapGeckoPayload(
   source: TrackedToken["source"],
 ): TrackedToken[] {
   const included = new Map((data?.included ?? []).map((item) => [item.id, item]));
-  return (data?.data ?? []).map((pool) => {
-    const network = geckoNetworkId(pool.id, pool.relationships?.network?.data?.id ?? fallbackNetwork);
-    return geckoToToken(pool, network, source, included);
-  });
+  return (data?.data ?? [])
+    .map((pool) => {
+      const network = geckoNetworkId(pool.id, pool.relationships?.network?.data?.id ?? fallbackNetwork);
+      return geckoToToken(pool, network, source, included);
+    })
+    .filter((token): token is TrackedToken => Boolean(token));
 }
 
 export async function fetchGeckoPools(network: string, kind: "new_pools" | "trending_pools"): Promise<TrackedToken[]> {
@@ -429,7 +449,7 @@ function pumpToToken(coin: PumpCoin): TrackedToken {
   const twitter = pumpSocial(coin.twitter, "twitter");
   const tweetId = firstTweetId(twitter, coin.description, coin.website);
   return attachXTrail({
-    id: `solana:${coin.mint}`,
+    id: tokenId("solana", coin.mint),
     chainId: "solana",
     tokenAddress: coin.mint,
     name: coin.name,
@@ -475,6 +495,14 @@ export async function fetchPumpNewest(limit = 40): Promise<TrackedToken[]> {
   return coins.map(pumpToToken);
 }
 
+export function viewerPatchFromLive(token: TrackedToken): Partial<TrackedToken> {
+  return defined({
+    livestream: token.livestream,
+    livestreamTitle: token.livestreamTitle,
+    viewers: token.viewers,
+  });
+}
+
 export async function fetchPumpLive(limit = 48): Promise<TrackedToken[]> {
   const coins = await getJson<PumpCoin[]>(
     `${PUMP}/coins/currently-live?offset=0&limit=${limit}&includeNsfw=false`,
@@ -503,7 +531,7 @@ export async function fetchBagsLaunches(): Promise<TrackedToken[]> {
       const pre = /pre|launch/i.test(item.status ?? "");
       return [
         attachXTrail({
-          id: `solana:${item.tokenMint}`,
+          id: tokenId("solana", item.tokenMint),
           chainId: "solana",
           tokenAddress: item.tokenMint,
           name: item.name || item.symbol || shortName(item.tokenMint),

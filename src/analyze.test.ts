@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { analyzeToken, heatLane, heatRank, indexAnalyses, listsByHeat, pickByHeat } from "./analyze";
+import { analyzeToken, heatLane, heatRank, indexAnalyses, listsByHeat, pickByHeat, uniqueTokens } from "./analyze";
 import { emptyBrain, learnFromTokens } from "./learn";
 import type { TrackedToken } from "./types";
 
@@ -180,5 +180,19 @@ describe("analyzeToken", () => {
     const lists = listsByHeat([dump, fresh], map);
     expect(lists.trap.map((row) => row.id)).toEqual(["solana:dump2"]);
     expect(lists.hot).toHaveLength(0);
+  });
+
+  it("keeps twitter and live viewers when a later bag reprints the same id", () => {
+    const first = token({
+      twitterUrl: "https://x.com/plumbercoin",
+      viewers: 44,
+      livestream: true,
+    });
+    const later = token({ marketCap: 12_000 });
+    const [merged] = uniqueTokens([first, later]);
+    expect(merged.twitterUrl).toBe("https://x.com/plumbercoin");
+    expect(merged.viewers).toBe(44);
+    expect(merged.livestream).toBe(true);
+    expect(merged.marketCap).toBe(12_000);
   });
 });

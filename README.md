@@ -31,7 +31,7 @@ If you want sub-second tweet alerts into Telegram/Discord/bots:
   - Solana: [RugCheck](https://rugcheck.xyz) mint/freeze/LP lock + [GoPlus](https://gopluslabs.io) holders
   - EVM: GoPlus honeypot, tax, mint, creator bag, unverified source
   - Local pair stats: thin liquidity and brand-new pools
-- **Token data** — opening a coin auto-scans RugCheck/GoPlus: **top 10** (LP/curve stripped), **bundled look** (clone-sized holder bags — too bundled gets a red chip), **dev hold / DS**, **serial deploys**, insiders, mint/freeze, Pulse lane, unique 1h traders, turnover, ATH drawdown, X account age, and pump.fun **live viewers**. True Jito sniper/bundle traces need a private block indexer; we flag the holder-tape version instead.
+- **Token data** — opening a coin auto-scans RugCheck/GoPlus: **top 10** (LP/curve stripped), **bundled look** (clone-sized holder bags — too bundled gets a red chip), **dev hold / DS**, **serial deploys**, insiders, mint/freeze, Pulse lane, unique 1h traders, turnover, ATH drawdown, X account age, and pump.fun **live viewers** (painted on the card, not only in the sidebar). True Jito sniper/bundle traces need a private block indexer; we flag the holder-tape version instead.
 - **Tweet attraction** — launching coins with an X status link show **likes and total interactions** on the card (RTs + replies + quotes + bookmarks). You do not have to open Twitter. You can still paste an `x.com/.../status/ID` link in the CA scanner (`quiet` / `warming` / `hot` / `viral`)
 - **Token hype** — each card gets a market-attraction badge from 24h volume, 1h pump, Dex boosts, turnover, and tweet likes
 - **Filters** — last hour, still bonding, has X, has likes; sort hot→warm→fresh / newest / hottest / most likes / looks like a runner

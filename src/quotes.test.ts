@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { quotePatchChanged, quotePatchFromPair, selectQuoteTargets } from "./api";
+import { geckoBaseMint, quotePatchChanged, quotePatchFromPair, selectQuoteTargets } from "./api";
 import type { DexTokenPair, TrackedToken } from "./types";
 
 const token = (id: string, extra: Partial<TrackedToken> = {}): TrackedToken => ({
@@ -49,5 +49,20 @@ describe("quotePatchChanged", () => {
     const row = token("a", { marketCap: 12_000, change1h: 8 });
     expect(quotePatchChanged(row, { marketCap: 12_000, change1h: 8 })).toBe(false);
     expect(quotePatchChanged(row, { marketCap: 13_000 })).toBe(true);
+  });
+});
+
+describe("geckoBaseMint", () => {
+  it("reads the token mint, not the pool address", () => {
+    const mint = geckoBaseMint(
+      {
+        id: "solana_pool",
+        attributes: { name: "Plumber", address: "POOLADDR11111111111111111111111111111111" },
+        relationships: { base_token: { data: { id: "solana_G8dmGbWTEFeK8Xmj5YaukwNsAKXCDEQfm11d5987crmZ" } } },
+      },
+      "solana",
+    );
+    expect(mint).toBe("G8dmGbWTEFeK8Xmj5YaukwNsAKXCDEQfm11d5987crmZ");
+    expect(geckoBaseMint({ id: "solana_x", attributes: { name: "x", address: "ONLYPOOL" } }, "solana")).toBeUndefined();
   });
 });

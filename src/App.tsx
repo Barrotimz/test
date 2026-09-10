@@ -17,6 +17,7 @@ import {
   searchMany,
   searchTokens,
   selectQuoteTargets,
+  viewerPatchFromLive,
 } from "./api";
 import { CHAINS, GECKO_NETWORKS, chainLabel, normalizeChain } from "./chains";
 import { LAUNCHPADS } from "./launchpads";
@@ -62,7 +63,7 @@ import {
 } from "./analyze";
 import { detectTodayMetas, metaForToken, metaSearchQueries, pickMetaCoins, type TodayMeta } from "./meta";
 import { pulseLabel, pulseStage, tapeQuality, twitterAgeChip } from "./read";
-import { pickBuyTape, patchBuys2m, stampBuys2m, type BuySample } from "./buys";
+import { pickBuyTape, patchBuys2m, type BuySample } from "./buys";
 import { pickRadarTokens, radarQuerySlice, hasXTrail, isTapeOpportunity } from "./social";
 import {
   brainInsights,
@@ -298,7 +299,7 @@ export default function App() {
       setEvents((prev) => [...fresh, ...prev].slice(0, 24));
       setSeen((count) => count + fresh.length);
     }
-    setter((prev) => mergeLists(prev, incoming.map((token) => stampBuys2m(token, buySamplesRef.current))));
+    setter((prev) => mergeLists(prev, incoming));
     pendingLearn.current.push(...incoming);
   }, []);
 
@@ -337,10 +338,11 @@ export default function App() {
       }
       jobs.push(fetchPumpNewest(64).then((rows) => ingest(rows, setLaunching)).catch(() => undefined));
       jobs.push(
-        fetchPumpLive(48)
+        fetchPumpLive(80)
           .then((rows) => {
             ingest(rows, setLaunching);
             ingest(rows, setRadar);
+            applyQuotes(rows.map((token) => ({ id: token.id, patch: viewerPatchFromLive(token) })));
           })
           .catch(() => undefined),
       );
@@ -383,15 +385,17 @@ export default function App() {
           );
         }
       }
-      jobs.push(
-        fillSocialsFromDex(bag, 100)
-          .then((rows) => {
-            ingest(rows, setRadar);
-            ingest(rows, setLaunching);
-            ingest(rows, setTrending);
-          })
-          .catch(() => undefined),
-      );
+      if (tick % 2 === 0) {
+        jobs.push(
+          fillSocialsFromDex(bag, 80)
+            .then((rows) => {
+              ingest(rows, setRadar);
+              ingest(rows, setLaunching);
+              ingest(rows, setTrending);
+            })
+            .catch(() => undefined),
+        );
+      }
       if (tick % 4 === 2 && net) {
         jobs.push(fetchGeckoPools(net, "new_pools").then((rows) => ingest(rows, setLaunching)));
       }
@@ -446,7 +450,7 @@ export default function App() {
       setStatus(knownIds.current.size ? "ok" : "err");
       setError(err instanceof Error ? err.message : "Scan hiccup");
     }
-  }, [ingest]);
+  }, [ingest, applyQuotes]);
 
   useEffect(() => {
     let alive = true;
@@ -1137,7 +1141,11 @@ export default function App() {
                 {opened.name} · {chainLabel(opened.chainId)}
                 {opened.launchpad ? ` · ${opened.launchpad}` : ""} · {opened.stage ?? "live"} ·{" "}
                 {coinAgeLabel(opened.pairCreatedAt)}
-                {opened.livestream ? ` · LIVE ${compactCount(opened.viewers ?? 0)} watching` : ""}
+                {opened.livestream
+                  ? ` · LIVE ${compactCount(opened.viewers ?? 0)} watching`
+                  : (opened.viewers ?? 0) > 0
+                    ? ` · ${compactCount(opened.viewers)} watching`
+                    : ""}
               </p>
               <CoinIntel token={opened} rug={rugs[opened.id]} busy={Boolean(rugBusy[opened.id])} />
               <div className="metrics">
@@ -1456,8 +1464,14 @@ function IntelChips({
   const chips: { key: string; label: string; tone: string }[] = [];
   const pulse = pulseLabel(pulseStage(token));
   if (pulse) chips.push({ key: "pulse", label: pulse, tone: pulse === "STRETCH" || pulse === "MIGRATED" ? "live" : "ok" });
-  if (token.livestream || (token.viewers ?? 0) > 0) {
-    chips.push({ key: "live", label: `LIVE ${compactCount(token.viewers ?? 0)}`, tone: "live" });
+  if (token.livestream) {
+    chips.unshift({
+      key: "live",
+      label: `LIVE ${compactCount(token.viewers ?? 0)} watching`,
+      tone: "live",
+    });
+  } else if ((token.viewers ?? 0) > 0) {
+    chips.unshift({ key: "live", label: `${compactCount(token.viewers)} watching`, tone: "ok" });
   }
   if (stats?.devSold) chips.push({ key: "ds", label: "DS", tone: "warn" });
   else if (stats?.creatorPct != null) {
@@ -1804,7 +1818,11 @@ const TokenCard = memo(function TokenCard({
           <div className="sub">
             {token.name} · {chainLabel(token.chainId)}
             {token.launchpad ? ` · ${token.launchpad}` : ""}
-            {token.livestream ? ` · LIVE ${compactCount(token.viewers ?? 0)}` : ""}
+            {token.livestream
+              ? ` · LIVE ${compactCount(token.viewers ?? 0)}`
+              : (token.viewers ?? 0) > 0
+                ? ` · ${compactCount(token.viewers)} watching`
+                : ""}
             {pulseLabel(pulseStage(token)) ? ` · ${pulseLabel(pulseStage(token))}` : ""}
           </div>
         </div>
@@ -1847,8 +1865,10 @@ const TokenCard = memo(function TokenCard({
           <b className={ageBucket}>{coinAgeLabel(token.pairCreatedAt)}</b>
         </div>
         <div>
-          <span>Likes</span>
-          {compactCount(token.tweetLikes)}
+          <span>Viewers</span>
+          <b className={token.livestream ? "pos" : ""}>
+            {compactCount(token.livestream || (token.viewers ?? 0) > 0 ? token.viewers : undefined)}
+          </b>
         </div>
       </div>
       {token.bondingPct != null && token.stage === "launching" && (

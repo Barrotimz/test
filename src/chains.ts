@@ -81,6 +81,18 @@ export function chainLabel(id: string): string {
   return CHAINS.find((chain) => chain.id === key)?.label ?? id;
 }
 
+/** EVM-style 0x addresses are case-insensitive. Solana mints are not. */
+export function normalizeTokenAddress(_chainId: string, address: string): string {
+  const trimmed = address.trim();
+  if (trimmed.startsWith("0x")) return trimmed.toLowerCase();
+  return trimmed;
+}
+
+export function tokenId(chainId: string, address: string): string {
+  const chain = normalizeChain(chainId);
+  return `${chain}:${normalizeTokenAddress(chain, address)}`;
+}
+
 export const GECKO_NETWORKS = CHAINS.map((chain) => chain.gecko).filter(
   (id): id is string => Boolean(id),
 );

@@ -1,6 +1,7 @@
 import { coinAgeBucket, pairAgeMs, tweetInteractions } from "./format";
 import { scoreAgainstBrain, type RunnerBrain, type RunnerCall } from "./learn";
 import { matchingRipMeta } from "./meta";
+import { mergeToken } from "./merge";
 import { pulseStage, tapeQuality, twitterAccountAgeMs } from "./read";
 import type { RugReport } from "./rug";
 import type { TrackedToken } from "./types";
@@ -288,7 +289,9 @@ export function heatRank(lane: HeatLane): number {
 
 export function uniqueTokens(tokens: TrackedToken[]): TrackedToken[] {
   const map = new Map<string, TrackedToken>();
-  for (const token of tokens) map.set(token.id, token);
+  for (const token of tokens) {
+    map.set(token.id, mergeToken(map.get(token.id), token));
+  }
   return [...map.values()];
 }
 
