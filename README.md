@@ -53,7 +53,7 @@ npm test
 npm run build
 ```
 
-The board analyzes each live coin once per update, skips no-op merges, and only paints the top 60 cards on a tab so the UI stays responsive while the sniffer keeps running.
+The board analyzes each live coin once per update, skips no-op merges, and only paints the top 60 cards on a tab so the UI stays responsive while the sniffer keeps running. Market cap, price, and 1h change on those visible cards (plus the open coin and watchlist) refresh every 10 seconds from DexScreener pair quotes — not a full rescan.
 
 Dev mode proxies DexScreener, GeckoTerminal, RugCheck, GoPlus, and tweet-embed metrics through Vite to avoid browser CORS issues.
 

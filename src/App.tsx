@@ -12,8 +12,11 @@ import {
   fetchPumpNewest,
   hydrateBoosts,
   lookupAddresses,
+  quotePatchChanged,
+  refreshQuotes,
   searchMany,
   searchTokens,
+  selectQuoteTargets,
 } from "./api";
 import { CHAINS, GECKO_NETWORKS, chainLabel, normalizeChain } from "./chains";
 import { LAUNCHPADS } from "./launchpads";
@@ -73,6 +76,7 @@ const WATCH_KEY = "xmeme-watchlist";
 const KOL_KEY = "xmeme-kols";
 const LEARN_KEY = "xmeme-runner-brain";
 const POLL_MS = 6500;
+const MCAP_MS = 10_000;
 const SOCIAL_MS = 7000;
 const SOCIAL_BATCH = 6;
 const BOARD_LIMIT = 60;
@@ -171,6 +175,8 @@ export default function App() {
   const socialBusy = useRef(new Set<string>());
   const bagsRef = useRef({ launching, radar, boosts, trending, watch });
   bagsRef.current = { launching, radar, boosts, trending, watch };
+  const quoteBagRef = useRef({ launching, radar, boosts, trending, watch, scanned, searchHits });
+  quoteBagRef.current = { launching, radar, boosts, trending, watch, scanned, searchHits };
   const brainRef = useRef(brain);
   brainRef.current = brain;
   const rugsRef = useRef(rugs);
@@ -178,6 +184,7 @@ export default function App() {
   const openIdRef = useRef(openId);
   openIdRef.current = openId;
   const rugBusyRef = useRef(new Set<string>());
+  const visibleIdsRef = useRef<string[]>([]);
 
   const pendingLearn = useRef<TrackedToken[]>([]);
 
@@ -219,6 +226,28 @@ export default function App() {
     },
     [patchToken],
   );
+
+  const applyQuotes = useCallback((rows: { id: string; patch: Partial<TrackedToken> }[]) => {
+    if (rows.length === 0) return;
+    const byId = new Map(rows.map((row) => [row.id, row.patch]));
+    const apply = (prev: TrackedToken[]) => {
+      let changed = false;
+      const next = prev.map((token) => {
+        const patch = byId.get(token.id);
+        if (!patch || !quotePatchChanged(token, patch)) return token;
+        changed = true;
+        return { ...token, ...patch };
+      });
+      return changed ? next : prev;
+    };
+    setLaunching(apply);
+    setRadar(apply);
+    setBoosts(apply);
+    setTrending(apply);
+    setWatch(apply);
+    setScanned(apply);
+    setSearchHits(apply);
+  }, []);
 
   const runRugCheck = useCallback(async (token: TrackedToken) => {
     if (rugBusyRef.current.has(token.id)) return;
@@ -606,6 +635,7 @@ export default function App() {
     [filtered, tab, sortMode, brain, analysisOf],
   );
   const visible = ranked.slice(0, BOARD_LIMIT);
+  visibleIdsRef.current = visible.map((token) => token.id);
   const opened =
     allLive.find((token) => token.id === openId) ??
     watch.find((token) => token.id === openId) ??
@@ -615,6 +645,42 @@ export default function App() {
     if (!opened) return;
     void ensureRugCheck(opened);
   }, [opened, ensureRugCheck]);
+
+  useEffect(() => {
+    let alive = true;
+    let quoting = false;
+    const tick = async () => {
+      if (quoting) return;
+      const bag = uniqueTokens(Object.values(quoteBagRef.current).flat());
+      const targets = selectQuoteTargets(
+        bag,
+        visibleIdsRef.current,
+        openIdRef.current,
+        bagsRef.current.watch.map((token) => token.id),
+      );
+      if (targets.length === 0) return;
+      quoting = true;
+      try {
+        applyQuotes(await refreshQuotes(targets));
+      } catch {
+        // keep the last printed mcap
+      } finally {
+        quoting = false;
+      }
+    };
+    const loop = async () => {
+      while (alive) {
+        const started = Date.now();
+        await tick();
+        const wait = Math.max(400, MCAP_MS - (Date.now() - started));
+        await new Promise((resolve) => setTimeout(resolve, wait));
+      }
+    };
+    void loop();
+    return () => {
+      alive = false;
+    };
+  }, [applyQuotes]);
 
   return (
     <div className="app">

@@ -2,6 +2,7 @@ import { geckoNetworkId, normalizeChain } from "./chains";
 import { launchpadFromDex } from "./launchpads";
 import { firstTweetId } from "./extract";
 import { tokenImage, twitterHandle } from "./format";
+import { defined } from "./merge";
 import { attachXTrail, hasXTrail, pickTwitterUrl } from "./social";
 import type { DexBoost, DexTokenPair, TrackedToken } from "./types";
 
@@ -95,6 +96,95 @@ export async function fetchTokenPairs(chainId: string, addresses: string[]): Pro
     ),
   );
   return results.flat();
+}
+
+function roundMoney(value?: number): number | undefined {
+  if (value == null || !Number.isFinite(value)) return undefined;
+  if (Math.abs(value) >= 100) return Math.round(value);
+  if (Math.abs(value) >= 1) return Math.round(value * 10) / 10;
+  return value;
+}
+
+function roundPct(value?: number): number | undefined {
+  if (value == null || !Number.isFinite(value)) return undefined;
+  return Math.round(value * 10) / 10;
+}
+
+export function quotePatchFromPair(pair: DexTokenPair): Partial<TrackedToken> {
+  return defined({
+    priceUsd: pair.priceUsd ? Number(pair.priceUsd) : undefined,
+    marketCap: roundMoney(pair.marketCap ?? pair.fdv),
+    fdv: roundMoney(pair.fdv),
+    volume5m: roundMoney(pair.volume?.m5),
+    volume1h: roundMoney(pair.volume?.h1),
+    volume24h: roundMoney(pair.volume?.h24),
+    change5m: roundPct(pair.priceChange?.m5),
+    change1h: roundPct(pair.priceChange?.h1),
+    change24h: roundPct(pair.priceChange?.h24),
+    liquidity: roundMoney(pair.liquidity?.usd),
+    buys5m: pair.txns?.m5?.buys,
+    sells5m: pair.txns?.m5?.sells,
+    buys1h: pair.txns?.h1?.buys,
+    sells1h: pair.txns?.h1?.sells,
+  });
+}
+
+export function quotePatchChanged(prev: TrackedToken, patch: Partial<TrackedToken>): boolean {
+  for (const [key, value] of Object.entries(patch) as [keyof TrackedToken, TrackedToken[keyof TrackedToken]][]) {
+    if (value === undefined) continue;
+    if (prev[key] !== value) return true;
+  }
+  return false;
+}
+
+export function selectQuoteTargets(
+  bag: TrackedToken[],
+  visibleIds: string[],
+  openId?: string | null,
+  extraIds: string[] = [],
+  cap = 80,
+): TrackedToken[] {
+  const byId = new Map(bag.map((token) => [token.id, token]));
+  const seen = new Set<string>();
+  const out: TrackedToken[] = [];
+  for (const id of [...visibleIds, openId ?? "", ...extraIds]) {
+    if (!id || seen.has(id)) continue;
+    const token = byId.get(id);
+    if (!token) continue;
+    seen.add(id);
+    out.push(token);
+    if (out.length >= cap) break;
+  }
+  return out;
+}
+
+/** Dex pair quotes for cards on screen — mcap/price/volume only, no socials or learn. */
+export async function refreshQuotes(
+  tokens: TrackedToken[],
+): Promise<{ id: string; patch: Partial<TrackedToken> }[]> {
+  if (tokens.length === 0) return [];
+  const byChain = new Map<string, TrackedToken[]>();
+  for (const token of tokens) {
+    const list = byChain.get(token.chainId) ?? [];
+    list.push(token);
+    byChain.set(token.chainId, list);
+  }
+  const rows: { id: string; patch: Partial<TrackedToken> }[] = [];
+  await Promise.all(
+    [...byChain.entries()].map(async ([chainId, items]) => {
+      const unique = [...new Map(items.map((item) => [item.tokenAddress.toLowerCase(), item])).values()];
+      const pairs = bestPairs(await fetchTokenPairs(chainId, unique.map((item) => item.tokenAddress)));
+      const index = new Map(
+        pairs.map((pair) => [`${normalizeChain(pair.chainId)}:${pair.baseToken.address.toLowerCase()}`, pair]),
+      );
+      for (const item of items) {
+        const pair = index.get(`${normalizeChain(item.chainId)}:${item.tokenAddress.toLowerCase()}`);
+        if (!pair) continue;
+        rows.push({ id: item.id, patch: quotePatchFromPair(pair) });
+      }
+    }),
+  );
+  return rows;
 }
 
 export async function searchTokens(query: string): Promise<TrackedToken[]> {
