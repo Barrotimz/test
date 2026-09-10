@@ -18,6 +18,16 @@ describe("summarizeHolders", () => {
     expect(stats.insiderPct).toBe(17);
     expect(stats.insiderCount).toBe(2);
   });
+
+  it("treats a 70%+ bag as bonding-curve / LP, not a top-10 whale", () => {
+    const stats = summarizeHolders([
+      { owner: "curve", pct: 88, insider: false },
+      { owner: "a", pct: 6, insider: false },
+      { owner: "b", pct: 4, insider: false },
+    ]);
+    expect(stats.topHolderPct).toBe(6);
+    expect(stats.top10Pct).toBe(10);
+  });
 });
 
 describe("scoreRugSignals", () => {

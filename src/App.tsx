@@ -58,6 +58,7 @@ import {
   type TokenAnalysis,
 } from "./analyze";
 import { detectTodayMetas, metaForToken, metaSearchQueries, pickMetaCoins, type TodayMeta } from "./meta";
+import { pulseLabel, pulseStage, tapeQuality, twitterAgeChip } from "./read";
 import { pickRadarTokens, radarSearchQueries } from "./social";
 import {
   brainInsights,
@@ -1335,8 +1336,23 @@ function IntelChips({
 }) {
   const stats = rug?.stats;
   const chips: { key: string; label: string; tone: string }[] = [];
+  const pulse = pulseLabel(pulseStage(token));
+  if (pulse) chips.push({ key: "pulse", label: pulse, tone: pulse === "STRETCH" || pulse === "MIGRATED" ? "live" : "ok" });
   if (token.livestream || (token.viewers ?? 0) > 0) {
     chips.push({ key: "live", label: `LIVE ${compactCount(token.viewers ?? 0)}`, tone: "live" });
+  }
+  if (stats?.devSold) chips.push({ key: "ds", label: "DS", tone: "warn" });
+  else if (stats?.creatorPct != null) {
+    chips.push({
+      key: "dev",
+      label: `Dev ${sharePct(stats.creatorPct)}`,
+      tone: stats.creatorPct >= 8 ? "warn" : "ok",
+    });
+  }
+  if (stats?.serialLauncher) {
+    chips.push({ key: "serial", label: `Serial ${stats.creatorLaunches}`, tone: "bad" });
+  } else if ((stats?.creatorLaunches ?? 0) >= 3) {
+    chips.push({ key: "serial", label: `${stats?.creatorLaunches} deploys`, tone: "warn" });
   }
   if (stats?.top10Pct != null) {
     chips.push({
@@ -1367,6 +1383,8 @@ function IntelChips({
     });
   }
   if (token.boostAmount) chips.push({ key: "paid", label: "Paid", tone: "warn" });
+  const xAge = twitterAgeChip(token.twitterJoinedAt);
+  if (xAge) chips.push({ key: "xage", label: xAge, tone: "" });
   if (token.buys5m) chips.push({ key: "buys", label: `${compactCount(token.buys5m)} buys 5m`, tone: "ok" });
   if (!chips.length && busy) chips.push({ key: "scan", label: "scanning…", tone: "" });
   if (!chips.length) return null;
@@ -1391,7 +1409,23 @@ function CoinIntel({
   busy?: boolean;
 }) {
   const stats = rug?.stats;
+  const tape = tapeQuality(token);
+  const pulse = pulseLabel(pulseStage(token));
   const cells = [
+    { label: "Pulse", value: pulse ?? "—", tone: pulse === "STRETCH" || pulse === "MIGRATED" ? "live" : "" },
+    {
+      label: "Dev hold",
+      value: stats?.devSold ? "DS" : sharePct(stats?.creatorPct),
+      tone: stats?.devSold || (stats?.creatorPct ?? 0) >= 8 ? "warn" : "",
+    },
+    {
+      label: "Dev deploys",
+      value:
+        stats?.creatorLaunches != null
+          ? `${stats.creatorLaunches}${stats.creatorDead != null ? ` · ${stats.creatorDead} dead` : ""}`
+          : "—",
+      tone: stats?.serialLauncher ? "bad" : "",
+    },
     { label: "Top 10 H.", value: sharePct(stats?.top10Pct), tone: (stats?.top10Pct ?? 0) >= 30 ? "bad" : "" },
     { label: "Insiders H.", value: sharePct(stats?.insiderPct), tone: (stats?.insiderPct ?? 0) >= 8 ? "warn" : "" },
     { label: "Holders", value: compactCount(stats?.holderCount), tone: "" },
@@ -1412,10 +1446,19 @@ function CoinIntel({
       tone: token.livestream ? "live" : "",
       hint: token.livestreamTitle,
     },
-    { label: "Pump replies", value: compactCount(token.replies), tone: "" },
-    { label: "5m buys", value: compactCount(token.buys5m), tone: "" },
-    { label: "1h buyers", value: compactCount(token.buyers1h), tone: "" },
-    { label: "1h vol", value: compactUsd(token.volume1h), tone: "" },
+    { label: "1h traders", value: compactCount(token.buyers1h), tone: tape.washy ? "warn" : "" },
+    {
+      label: "Organic tape",
+      value: tape.uniqueShare != null ? sharePct(tape.uniqueShare * 100) : "—",
+      tone: tape.washy ? "bad" : (tape.uniqueShare ?? 0) >= 0.35 ? "ok" : "",
+    },
+    { label: "Turnover 1h", value: tape.turnover != null ? `${tape.turnover.toFixed(2)}x` : "—", tone: "" },
+    {
+      label: "From ATH",
+      value: tape.athDrawdown != null ? `-${Math.round(tape.athDrawdown)}%` : compactUsd(token.athMarketCap),
+      tone: (tape.athDrawdown ?? 0) >= 40 ? "warn" : "",
+    },
+    { label: "X age", value: twitterAgeChip(token.twitterJoinedAt)?.replace(/^X /, "") ?? "—", tone: "" },
     {
       label: "Boosts",
       value: token.boostAmount ? compactCount(token.boostAmount) : "No",
@@ -1428,10 +1471,10 @@ function CoinIntel({
         <h3>Token data & security</h3>
         <p>
           {busy
-            ? "Scanning holders, mint, and freeze…"
+            ? "Scanning holders, mint, freeze, and deployer history…"
             : rug
-              ? `${rug.sources.join(" · ")}. Live viewers come from pump.fun streams.`
-              : "Auto-scans holders and mint/freeze. Viewer count is concurrent pump.fun livestream watchers."}
+              ? `${rug.sources.join(" · ")}. Pulse / DS / serial deploys / unique buyers — the Axiom-style read from public tape.`
+              : "Auto-scans holders, mint/freeze, and this wallet's other deploys. Viewers are live pump.fun watchers."}
         </p>
       </div>
       <div className="intel-grid">
@@ -1610,6 +1653,7 @@ const TokenCard = memo(function TokenCard({
             {token.name} · {chainLabel(token.chainId)}
             {token.launchpad ? ` · ${token.launchpad}` : ""}
             {token.livestream ? ` · LIVE ${compactCount(token.viewers ?? 0)}` : ""}
+            {pulseLabel(pulseStage(token)) ? ` · ${pulseLabel(pulseStage(token))}` : ""}
           </div>
         </div>
         <span className={`badge ${analysis.heat}`}>{analysis.heat}</span>

@@ -1,6 +1,7 @@
 import { coinAgeBucket, pairAgeMs, tweetInteractions } from "./format";
 import { scoreAgainstBrain, type RunnerBrain, type RunnerCall } from "./learn";
 import { matchingRipMeta } from "./meta";
+import { pulseStage, tapeQuality, twitterAccountAgeMs } from "./read";
 import type { RugReport } from "./rug";
 import type { TrackedToken } from "./types";
 
@@ -115,6 +116,22 @@ export function analyzeToken(token: TrackedToken, brain: RunnerBrain, rug?: RugR
     score -= 10;
     notes.push({ side: "against", text: "Volume from a handful of wallets — wash / insider look" });
   }
+  const tape = tapeQuality(token);
+  if (tape.washy && !notes.some((note) => /wash/.test(note.text))) {
+    score -= 8;
+    notes.push({ side: "against", text: "Tape looks botty — lots of buys, almost no unique wallets" });
+  } else if (tape.uniqueShare != null && tape.uniqueShare >= 0.35 && buys >= 12) {
+    score += 6;
+    notes.push({ side: "for", text: "Unique buyers are a real share of prints — more organic than bot wash" });
+  }
+  if (tape.turnover != null && tape.turnover >= 0.8 && vol1 >= 10_000) {
+    score += 5;
+    notes.push({ side: "for", text: "1h volume is turning over a large slice of mcap" });
+  }
+  if (tape.athDrawdown != null && tape.athDrawdown >= 40) {
+    score -= 8;
+    notes.push({ side: "against", text: `Down ${Math.round(tape.athDrawdown)}% from ATH — late unless it reclaims` });
+  }
   if (vol5 > 0 && vol1 > 0 && vol5 * 12 > vol1 * 2.2) {
     score += 6;
     notes.push({ side: "for", text: "5m volume is accelerating vs the last hour" });
@@ -148,6 +165,37 @@ export function analyzeToken(token: TrackedToken, brain: RunnerBrain, rug?: RugR
   if (token.bondingPct != null && token.bondingPct >= 80) {
     score += 5;
     notes.push({ side: "for", text: `Bonding curve is ${token.bondingPct}% — close to graduation` });
+  }
+  const pulse = pulseStage(token);
+  if (pulse === "stretch") {
+    score += 4;
+    notes.push({ side: "for", text: "Final stretch on the curve — Axiom Pulse would park this here" });
+  } else if (pulse === "migrated") {
+    notes.push({ side: "for", text: "Just migrated off the pad — the Raydium/PumpSwap candle window" });
+  }
+  const xAge = twitterAccountAgeMs(token.twitterJoinedAt);
+  if (xAge != null && xAge < 7 * 24 * 60 * 60_000 && (ageMs == null || ageMs < 2 * 24 * 60 * 60_000)) {
+    score -= 8;
+    notes.push({ side: "against", text: "X account is brand new on a new coin — classic throwaway" });
+  } else if (xAge != null && xAge > 2 * 365 * 24 * 60 * 60_000 && likes >= 20) {
+    score += 4;
+    notes.push({ side: "for", text: "Tweet came from an aged X account, not a 2-hour burner" });
+  }
+  const stats = rug?.stats;
+  if (stats?.serialLauncher) {
+    score -= 10;
+    notes.push({
+      side: "against",
+      text: `Serial deployer — ${stats.creatorLaunches} prior coins, ${stats.creatorDead} already dead`,
+    });
+  }
+  if (stats?.devSold) {
+    notes.push({ side: "against", text: "Dev bag is empty (DS) — they already sold or never held" });
+  } else if (stats?.creatorPct != null && stats.creatorPct >= 5 && stats.creatorPct < 30) {
+    notes.push({ side: "against", text: `Dev still holds ${stats.creatorPct.toFixed(1)}%` });
+  }
+  if (stats?.top10Pct != null && stats.top10Pct >= 35) {
+    notes.push({ side: "against", text: `Top 10 wallets hold ${stats.top10Pct.toFixed(0)}% after dropping LP/curve` });
   }
   const metaHit = matchingRipMeta(token, brain.lessons);
   if (metaHit) {

@@ -306,6 +306,7 @@ type PumpCoin = {
   website?: string;
   usd_market_cap?: number;
   market_cap_usd?: number;
+  ath_market_cap?: number;
   reply_count?: number;
   is_currently_live?: boolean;
   num_participants?: number;
@@ -342,6 +343,7 @@ function pumpToToken(coin: PumpCoin): TrackedToken {
     description: coin.description || undefined,
     imageUrl: coin.image_uri,
     marketCap: coin.usd_market_cap ?? coin.market_cap_usd,
+    athMarketCap: coin.ath_market_cap,
     twitterUrl: twitter,
     telegramUrl: pumpSocial(coin.telegram, "telegram"),
     websiteUrl: pumpSocial(coin.website),

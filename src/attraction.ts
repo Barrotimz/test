@@ -1,5 +1,6 @@
 import { firstTweetId } from "./extract";
 import { twitterHandle } from "./format";
+import { parseTwitterJoined } from "./read";
 import type { TrackedToken } from "./types";
 
 const FX = import.meta.env.DEV ? "/fx" : "https://api.fxtwitter.com";
@@ -121,6 +122,7 @@ type FxUser = {
     followers?: number;
     tweets?: number;
     description?: string;
+    joined?: string;
   };
 };
 
@@ -130,6 +132,7 @@ export async function fetchTwitterUser(handle: string): Promise<{
   followers: number;
   tweets: number;
   description: string;
+  joinedAt?: number;
 }> {
   const response = await fetch(`${FX}/${encodeURIComponent(handle)}`);
   if (!response.ok) throw new Error(`@${handle} returned ${response.status}`);
@@ -141,6 +144,7 @@ export async function fetchTwitterUser(handle: string): Promise<{
     followers: data.user.followers ?? 0,
     tweets: data.user.tweets ?? 0,
     description: data.user.description ?? "",
+    joinedAt: parseTwitterJoined(data.user.joined),
   };
 }
 
@@ -173,6 +177,7 @@ export async function enrichTokenSocial(token: TrackedToken): Promise<Partial<Tr
     twitterHandle: user.handle,
     twitterFollowers: user.followers,
     twitterTweets: user.tweets,
+    twitterJoinedAt: user.joinedAt,
     socialCheckedAt: Date.now(),
   };
 }

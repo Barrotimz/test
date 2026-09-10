@@ -1,4 +1,5 @@
 import type { TrackedToken } from "./types";
+import { summarizeCreatorTokens } from "./read";
 
 const RUG = import.meta.env.DEV ? "/rug" : "https://api.rugcheck.xyz";
 const GOPLUS = import.meta.env.DEV ? "/goplus" : "https://api.gopluslabs.io";
@@ -23,6 +24,12 @@ export type CoinStats = {
   insiderCount?: number;
   creatorPct?: number;
   lpLockedPct?: number;
+  devSold?: boolean;
+  creatorLaunches?: number;
+  creatorDead?: number;
+  creatorBestMcap?: number;
+  serialLauncher?: boolean;
+  deployPad?: string;
 };
 
 export type RugReport = {
@@ -57,6 +64,12 @@ export type RugSignals = {
   pausable?: boolean;
   rugcheckScore?: number;
   rugcheckRisks?: string[];
+  devSold?: boolean;
+  creatorLaunches?: number;
+  creatorDead?: number;
+  creatorBestMcap?: number;
+  serialLauncher?: boolean;
+  deployPad?: string;
 };
 
 export type HolderRow = {
@@ -95,7 +108,11 @@ export function summarizeHolders(
 ): Pick<CoinStats, "top10Pct" | "topHolderPct" | "insiderPct" | "insiderCount"> {
   const pool = poolAddresses(known, markets);
   const isPool = (holder: HolderRow) =>
-    Boolean((holder.owner && pool.has(holder.owner)) || (holder.address && pool.has(holder.address)));
+    Boolean(
+      (holder.pct != null && holder.pct >= 70) ||
+        (holder.owner && pool.has(holder.owner)) ||
+        (holder.address && pool.has(holder.address)),
+    );
   const wallets = (holders ?? []).filter((holder) => holder.pct != null && !isPool(holder));
   const top10Pct = wallets.slice(0, 10).reduce((sum, holder) => sum + (holder.pct ?? 0), 0);
   const insiders = (holders ?? []).filter((holder) => holder.insider && holder.pct != null);
@@ -318,6 +335,33 @@ export function scoreRugSignals(signals: RugSignals): RugReport {
     });
   }
 
+  if (signals.serialLauncher) {
+    score += 12;
+    flags.push({
+      id: "serial",
+      label: `Serial deployer (${signals.creatorLaunches} coins, ${signals.creatorDead} dead)`,
+      detail: "Same wallet sprayed many low-cap coins. Axiom-style serial-launcher tell.",
+      level: "warn",
+    });
+  } else if ((signals.creatorLaunches ?? 0) >= 3) {
+    flags.push({
+      id: "serial",
+      label: `Dev launched ${signals.creatorLaunches} coins`,
+      detail: "Previous deploys from this wallet.",
+      level: "info",
+    });
+  }
+
+  if (signals.devSold) {
+    flags.push({
+      id: "ds",
+      label: "Dev sold (DS)",
+      detail: "Creator bag is empty on the scan. They already exited or never held.",
+      level: "warn",
+    });
+    score += 8;
+  }
+
   if ((signals.insiderClusters ?? 0) >= 2) {
     score += 8;
     flags.push({
@@ -368,6 +412,12 @@ export function scoreRugSignals(signals: RugSignals): RugReport {
       insiderCount: signals.insiderClusters,
       creatorPct: signals.creatorPct,
       lpLockedPct: signals.lpLockedPct,
+      devSold: signals.devSold,
+      creatorLaunches: signals.creatorLaunches,
+      creatorDead: signals.creatorDead,
+      creatorBestMcap: signals.creatorBestMcap,
+      serialLauncher: signals.serialLauncher,
+      deployPad: signals.deployPad,
     },
     sources: [],
   };
@@ -380,7 +430,7 @@ type RugcheckReport = {
   risks?: { name?: string; level?: string; description?: string }[] | string[];
   mintAuthority?: string | null;
   freezeAuthority?: string | null;
-  token?: { mintAuthority?: string | null; freezeAuthority?: string | null };
+  token?: { mintAuthority?: string | null; freezeAuthority?: string | null; supply?: number };
   totalHolders?: number;
   totalMarketLiquidity?: number;
   graphInsidersDetected?: number;
@@ -394,7 +444,12 @@ type RugcheckReport = {
   token_extensions?: { transferFeeConfig?: unknown; pausableConfig?: unknown };
   topHolders?: { owner?: string; address?: string; pct?: number; insider?: boolean }[];
   knownAccounts?: Record<string, { type?: string }>;
+  creator?: string | null;
   creatorBalance?: number | { pct?: number } | null;
+  creatorTokens?: { mint?: string; marketCap?: number; createdAt?: string }[] | null;
+  insiderNetworks?: { size?: number; tokenAmount?: number; type?: string }[];
+  launchpad?: { name?: string; platform?: string } | null;
+  deployPlatform?: string | null;
 };
 
 type GoplusSolana = {
@@ -441,6 +496,28 @@ function mergeSignals(...parts: RugSignals[]): RugSignals {
   return Object.assign({}, ...parts);
 }
 
+function creatorShareFromReport(report: RugcheckReport): number | undefined {
+  const supply = report.token?.supply;
+  const balance = typeof report.creatorBalance === "number" ? report.creatorBalance : undefined;
+  if (supply && supply > 0 && balance != null) {
+    const pct = (balance / supply) * 100;
+    if (pct >= 0 && pct <= 100) return pct;
+  }
+  const creator = report.creator;
+  if (creator) {
+    const row = report.topHolders?.find((holder) => holder.owner === creator);
+    if (row?.pct != null) return row.pct;
+  }
+  const knownCreator = Object.entries(report.knownAccounts ?? {}).find(([, meta]) => meta.type === "CREATOR")?.[0];
+  if (knownCreator) {
+    const row = report.topHolders?.find(
+      (holder) => holder.owner === knownCreator || holder.address === knownCreator,
+    );
+    if (row?.pct != null) return row.pct;
+  }
+  return maybePct(typeof report.creatorBalance === "number" ? undefined : report.creatorBalance?.pct);
+}
+
 function fromRugcheck(report: RugcheckReport): RugSignals {
   const risks = (report.risks ?? []).map((risk) =>
     typeof risk === "string" ? risk : risk.name || risk.description || "RugCheck risk",
@@ -449,8 +526,14 @@ function fromRugcheck(report: RugcheckReport): RugSignals {
     ?.map((market) => market.lp?.lpLockedPct ?? 0)
     .reduce((best, value) => Math.max(best, value), 0);
   const holders = summarizeHolders(report.topHolders, report.knownAccounts, report.markets);
-  const creatorRaw =
-    typeof report.creatorBalance === "number" ? report.creatorBalance : report.creatorBalance?.pct;
+  const creatorPct = creatorShareFromReport(report);
+  const tape = summarizeCreatorTokens(report.creatorTokens ?? undefined);
+  const supply = report.token?.supply;
+  const networkPcts = (report.insiderNetworks ?? [])
+    .map((network) => (supply && supply > 0 && network.tokenAmount ? (network.tokenAmount / supply) * 100 : 0))
+    .filter((pct) => pct > 0 && pct <= 100);
+  const insiderPct = Math.max(holders.insiderPct ?? 0, ...networkPcts) || holders.insiderPct;
+  const networkSize = (report.insiderNetworks ?? []).reduce((sum, network) => sum + (network.size ?? 0), 0);
   return {
     rugged: report.rugged,
     mintAuthority: (report.mintAuthority ?? report.token?.mintAuthority ?? null) != null,
@@ -458,15 +541,21 @@ function fromRugcheck(report: RugcheckReport): RugSignals {
     holderCount: report.totalHolders,
     liquidityUsd: report.totalMarketLiquidity,
     lpLockedPct: lpLockedPct || undefined,
-    insiderClusters: Math.max(report.graphInsidersDetected ?? 0, holders.insiderCount ?? 0) || undefined,
+    insiderClusters: Math.max(report.graphInsidersDetected ?? 0, holders.insiderCount ?? 0, networkSize) || undefined,
     transferFee: Boolean(report.token_extensions?.transferFeeConfig),
     pausable: Boolean(report.token_extensions?.pausableConfig),
     rugcheckScore: report.score_normalised ?? report.score,
     rugcheckRisks: risks.filter(Boolean),
     topHolderPct: holders.topHolderPct,
     top10Pct: holders.top10Pct,
-    insiderPct: holders.insiderPct,
-    creatorPct: maybePct(creatorRaw),
+    insiderPct,
+    creatorPct,
+    devSold: Boolean(report.creator) && creatorPct === 0,
+    creatorLaunches: tape.launches || undefined,
+    creatorDead: tape.launches ? tape.dead : undefined,
+    creatorBestMcap: tape.bestMcap,
+    serialLauncher: tape.serialLauncher || undefined,
+    deployPad: report.launchpad?.name || report.deployPlatform || undefined,
   };
 }
 

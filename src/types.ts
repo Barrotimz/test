@@ -83,6 +83,7 @@ export type TrackedToken = {
   livestream?: boolean;
   livestreamTitle?: string;
   viewers?: number;
+  athMarketCap?: number;
   creator?: string;
   username?: string;
   kingOfHill?: boolean;
@@ -98,6 +99,7 @@ export type TrackedToken = {
   twitterFollowers?: number;
   twitterHandle?: string;
   twitterTweets?: number;
+  twitterJoinedAt?: number;
   socialCheckedAt?: number;
   stage?: TokenStage;
   seenAt?: number;
