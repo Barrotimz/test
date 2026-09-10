@@ -215,6 +215,38 @@ img {
   color: var(--muted);
 }
 
+.badge.quiet {
+  background: var(--panel-2);
+  color: var(--muted);
+}
+
+.badge.warming {
+  background: #3a2f12;
+  color: #f5c451;
+}
+
+.badge.hot {
+  background: #12363a;
+  color: var(--cyan);
+}
+
+.badge.viral {
+  background: #24380f;
+  color: var(--lime);
+}
+
+.tweet-card {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #0c1c24;
+}
+
+.tweet-card .metrics {
+  grid-template-columns: repeat(3, 1fr);
+}
+
 .flags {
   list-style: none;
   margin: 0;

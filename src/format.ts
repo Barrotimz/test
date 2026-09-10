@@ -1,3 +1,11 @@
+export function compactCount(value?: number | null): string {
+  if (value == null || Number.isNaN(value)) return "—";
+  const abs = Math.abs(value);
+  if (abs >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+  if (abs >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
+  return `${Math.round(value)}`;
+}
+
 export function compactUsd(value?: number): string {
   if (value == null || Number.isNaN(value)) return "—";
   const abs = Math.abs(value);

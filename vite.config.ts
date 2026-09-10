@@ -30,6 +30,11 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/goplus/, ""),
       },
+      "/fx": {
+        target: "https://api.fxtwitter.com",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/fx/, ""),
+      },
     },
   },
 });

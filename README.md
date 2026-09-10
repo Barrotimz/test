@@ -25,6 +25,8 @@ If you want sub-second tweet alerts into Telegram/Discord/bots:
   - Solana: [RugCheck](https://rugcheck.xyz) mint/freeze/LP lock + [GoPlus](https://gopluslabs.io) holders
   - EVM: GoPlus honeypot, tax, mint, creator bag, unverified source
   - Local pair stats: thin liquidity and brand-new pools
+- **Tweet attraction** — paste an `x.com/.../status/ID` link to score likes, RTs, quotes, replies, views, and author followers (`quiet` / `warming` / `hot` / `viral`)
+- **Token hype** — each card gets a market-attraction badge from 24h volume, 1h pump, Dex boosts, and turnover
 
 ## Run
 
@@ -40,7 +42,7 @@ npm test
 npm run build
 ```
 
-Dev mode proxies DexScreener, GeckoTerminal, RugCheck, and GoPlus through Vite to avoid browser CORS issues.
+Dev mode proxies DexScreener, GeckoTerminal, RugCheck, GoPlus, and tweet-embed metrics through Vite to avoid browser CORS issues.
 
 ## Disclaimer
 

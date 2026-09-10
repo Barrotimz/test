@@ -7,10 +7,12 @@ import {
   lookupAddresses,
   searchTokens,
 } from "./api";
+import { fetchTweetAttractions, scoreTokenHype, type TweetAttraction } from "./attraction";
 import { checkTokenRug, type RugReport } from "./rug";
 import { extractMentions } from "./extract";
 import {
   ageLabel,
+  compactCount,
   compactUsd,
   liveSearchUrl,
   pct,
@@ -61,6 +63,8 @@ export default function App() {
   const [rugs, setRugs] = useState<Record<string, RugReport>>({});
   const [rugBusy, setRugBusy] = useState<Record<string, boolean>>({});
   const [rugError, setRugError] = useState<Record<string, string>>({});
+  const [tweets, setTweets] = useState<TweetAttraction[]>([]);
+  const [tweetBusy, setTweetBusy] = useState(false);
 
   const refresh = useCallback(async () => {
     setStatus("busy");
@@ -151,13 +155,22 @@ export default function App() {
   }
 
   async function scanContracts() {
-    const addresses = [...mentions.solana, ...mentions.evm];
-    if (addresses.length === 0) {
-      setScanned([]);
-      return;
-    }
     setStatus("busy");
+    setTweetBusy(true);
     try {
+      const pulled = mentions.tweetIds.length
+        ? await fetchTweetAttractions(mentions.tweetIds)
+        : [];
+      setTweets(pulled);
+      const combined = extractMentions(
+        [scanText, ...pulled.map((tweet) => tweet.text)].join("\n"),
+      );
+      const addresses = [...combined.solana, ...combined.evm];
+      if (addresses.length === 0) {
+        setScanned([]);
+        setStatus("ok");
+        return;
+      }
       const tokens = await lookupAddresses(addresses.slice(0, 8));
       setScanned(tokens);
       setStatus("ok");
@@ -165,6 +178,8 @@ export default function App() {
     } catch (err) {
       setStatus("err");
       setError(err instanceof Error ? err.message : "Lookup failed");
+    } finally {
+      setTweetBusy(false);
     }
   }
 
@@ -186,7 +201,7 @@ export default function App() {
           <div className="logo">XR</div>
           <div>
             <h1>XMeme Radar</h1>
-            <p>Twitter / X memecoin monitor with on-demand rugpull checks from RugCheck + GoPlus.</p>
+            <p>Twitter / X memecoin monitor — rug checks plus tweet attraction (likes, RTs, views).</p>
           </div>
         </div>
         <form className="search-wrap" onSubmit={onSearch}>
@@ -226,10 +241,10 @@ export default function App() {
       <div className="banner">
         <h2>What this tracks</h2>
         <p>
-          Radar still uses public DexScreener / GeckoTerminal data and live X search. Hit
-          <b> Rug check</b> on a card to scan mint/freeze authority, LP lock, honeypot, taxes,
-          holder concentration, and thin liquidity. CA scanner runs that automatically. This is a
-          heuristic, not a guarantee — rugs still happen on “safe” looking mints.
+          Paste an x.com status link in the CA scanner to score tweet attraction (likes, retweets,
+          quotes, views, follower reach). Token cards also show a market <b>hype</b> badge from
+          volume, pumps, and Dex boosts. Rug check is still on every card. Heuristics only — not
+          financial advice.
         </p>
       </div>
 
@@ -250,17 +265,20 @@ export default function App() {
               <textarea
                 value={scanText}
                 onChange={(event) => setScanText(event.target.value)}
-                placeholder="just bought $FROG ca: 5CwpF2UsgWvNKeDQaKZPjQCd6jM4K32yNVRVCuh1pump @somekol"
+                placeholder="https://x.com/someone/status/123  plus a CA or $TICKER"
               />
               <div className="meta-row">
                 <button type="button" className="primary" onClick={() => void scanContracts()}>
-                  Lookup contracts
+                  {tweetBusy ? "Scoring tweet…" : "Lookup + attraction"}
                 </button>
                 <span>
                   {mentions.tickers.length} tickers · {mentions.solana.length + mentions.evm.length} CAs ·{" "}
-                  {mentions.handles.length} handles
+                  {mentions.handles.length} handles · {mentions.tweetIds.length} tweet links
                 </span>
               </div>
+              {tweets.map((tweet) => (
+                <TweetCard key={tweet.id} tweet={tweet} />
+              ))}
               <div className="chips">
                 {mentions.tickers.map((ticker) => (
                   <a key={ticker} className="chip" href={liveSearchUrl(`$${ticker}`)} target="_blank" rel="noreferrer">
@@ -373,6 +391,22 @@ export default function App() {
               “ca:” solana
             </a>
           </div>
+          <h2 style={{ marginTop: 22 }}>Tweet attraction</h2>
+          {tweets.length === 0 ? (
+            <p>Paste an x.com/status link in CA scanner to see likes, RTs, and reach.</p>
+          ) : (
+            tweets.map((tweet) => (
+              <div className="kol" key={`side-${tweet.id}`}>
+                <div>
+                  <div className="sym">@{tweet.handle}</div>
+                  <div className="sub">
+                    {compactCount(tweet.likes)} likes · {compactCount(tweet.retweets)} RTs
+                  </div>
+                </div>
+                <span className={`badge ${tweet.level}`}>{tweet.level}</span>
+              </div>
+            ))
+          )}
           <h2 style={{ marginTop: 22 }}>Last rug checks</h2>
           {Object.keys(rugs).length === 0 ? (
             <p>Run Rug check on a card. Solana uses RugCheck + GoPlus; EVM uses GoPlus.</p>
@@ -410,9 +444,8 @@ export default function App() {
       </div>
 
       <p className="notice">
-        Public DexScreener, GeckoTerminal, RugCheck, and GoPlus data. Not financial advice. A
-        “safe” badge is not a promise — it only means the usual mint/freeze/LP/honeypot flags were
-        quiet.
+        Public DexScreener, GeckoTerminal, RugCheck, GoPlus, and tweet-embed metrics. Attraction
+        and “safe” badges are heuristics, not a guarantee. Not financial advice.
       </p>
     </div>
   );
@@ -463,6 +496,7 @@ function TokenCard({
   const [imgOk, setImgOk] = useState(true);
   const handle = twitterHandle(token.twitterUrl);
   const change = token.change1h ?? token.change24h;
+  const hype = scoreTokenHype(token);
   return (
     <article className="card">
       <div className="card-head">
@@ -477,6 +511,9 @@ function TokenCard({
             {token.name} · {token.chainId} · {shortAddress(token.tokenAddress)}
           </div>
         </div>
+        <span className={`badge ${hype.level}`} title="Market hype from volume, pump, and boosts">
+          {hype.level}
+        </span>
         {rug && <span className={`badge ${rug.level}`}>{rug.level}</span>}
       </div>
       {token.description && <div className="desc">{token.description}</div>}
@@ -526,6 +563,54 @@ function TokenCard({
         <button className="mini rug" onClick={onRugCheck} disabled={rugBusy}>
           {rugBusy ? "Checking…" : rug ? "Re-check" : "Rug check"}
         </button>
+      </div>
+    </article>
+  );
+}
+
+function TweetCard({ tweet }: { tweet: TweetAttraction }) {
+  return (
+    <article className="tweet-card">
+      <div className="card-head">
+        <div className="grow">
+          <div className="sym">@{tweet.handle}</div>
+          <div className="sub">
+            {tweet.name} · {compactCount(tweet.followers)} followers
+          </div>
+        </div>
+        <span className={`badge ${tweet.level}`}>{tweet.level} attraction</span>
+      </div>
+      {tweet.text && <p className="desc">{tweet.text}</p>}
+      <div className="metrics">
+        <div>
+          <span>Likes</span>
+          {compactCount(tweet.likes)}
+        </div>
+        <div>
+          <span>RTs</span>
+          {compactCount(tweet.retweets)}
+        </div>
+        <div>
+          <span>Quotes</span>
+          {compactCount(tweet.quotes)}
+        </div>
+        <div>
+          <span>Replies</span>
+          {compactCount(tweet.replies)}
+        </div>
+        <div>
+          <span>Views</span>
+          {compactCount(tweet.views)}
+        </div>
+        <div>
+          <span>Score</span>
+          {compactCount(tweet.score)}
+        </div>
+      </div>
+      <div className="actions">
+        <a className="mini x" href={tweet.url} target="_blank" rel="noreferrer">
+          Open tweet
+        </a>
       </div>
     </article>
   );
