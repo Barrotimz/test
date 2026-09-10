@@ -398,6 +398,12 @@ img {
   color: var(--cyan);
 }
 
+.mini.padre {
+  background: #24380f;
+  border-color: #4a6a2a;
+  color: var(--lime);
+}
+
 .tweet-pulse {
   background: #0c2430;
   border: 1px solid #1d4d63;

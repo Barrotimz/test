@@ -11,4 +11,7 @@ export const DEFAULT_KOLS: Kol[] = [
   { handle: "bonk_inu", name: "Bonk", note: "Large Solana meme" },
   { handle: "truth_terminal", name: "Truth Terminal", note: "AI / lore tokens" },
   { handle: "0xngmi", name: "0xngmi", note: "On-chain research" },
+  { handle: "zachxbt", name: "ZachXBT", note: "Scam / rug investigations" },
+  { handle: "lookonchain", name: "Lookonchain", note: "Wallet and CA alerts" },
+  { handle: "DexScreener", name: "DexScreener", note: "Pair and social listings" },
 ];

@@ -124,6 +124,25 @@ export function liveSearchUrl(query: string): string {
   return `https://x.com/search?q=${encodeURIComponent(query)}&src=typed_query&f=live`;
 }
 
+const PADRE_CHAIN: Record<string, string> = {
+  solana: "solana",
+  ethereum: "ethereum",
+  eth: "ethereum",
+  bsc: "bsc",
+  bnb: "bsc",
+  base: "base",
+};
+
+export function padreTradeUrl(chainId: string, address: string): string {
+  const key = chainId.toLowerCase();
+  const slug = PADRE_CHAIN[key] ?? key;
+  return `https://trade.padre.gg/trade/${slug}/${address}`;
+}
+
+export function caSearchUrl(address: string): string {
+  return liveSearchUrl(`"${address}"`);
+}
+
 export function tokenSearchQuery(symbol: string, address: string): string {
   const ticker = symbol.replace(/[^A-Za-z0-9]/g, "");
   return ticker ? `$${ticker} OR ${address}` : address;

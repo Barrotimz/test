@@ -27,10 +27,12 @@ import {
   ageLabel,
   coinAgeBucket,
   coinAgeLabel,
+  caSearchUrl,
   compactCount,
   compactPrice,
   compactUsd,
   liveSearchUrl,
+  padreTradeUrl,
   pct,
   shortAddress,
   toMillis,
@@ -38,6 +40,7 @@ import {
   tweetInteractions,
   twitterHandle,
 } from "./format";
+import { firstTweetId } from "./extract";
 import { DEFAULT_KOLS } from "./kols";
 import type { FeedEvent, Kol, TabId, TrackedToken } from "./types";
 
@@ -174,7 +177,7 @@ export default function App() {
       if (tick % 4 === 1) {
         jobs.push(fetchGeckoGlobal("trending_pools").then((rows) => ingest(rows, setTrending)));
       }
-      if (tick % 3 === 0) {
+      if (tick % 2 === 1) {
         jobs.push(
           (async () => {
             const [latestBoosts, topBoosts, profiles] = await Promise.all([
@@ -182,11 +185,15 @@ export default function App() {
               fetchBoosts("top"),
               fetchProfiles(),
             ]);
-            const withTwitter = [...latestBoosts, ...profiles].filter((item) =>
-              item.links?.some((link) => (link.type ?? "").toLowerCase() === "twitter"),
-            );
+            const socialish = [...latestBoosts, ...profiles].filter((item) => {
+              const links = item.links ?? [];
+              return (
+                links.some((link) => (link.type ?? "").toLowerCase() === "twitter") ||
+                Boolean(firstTweetId(item.description ?? "", ...links.map((link) => link.url)))
+              );
+            });
             const [radarTokens, boostTokens] = await Promise.all([
-              hydrateBoosts(withTwitter.slice(0, 36), "profile"),
+              hydrateBoosts(socialish.slice(0, 48), "profile"),
               hydrateBoosts(topBoosts.slice(0, 36), "boost"),
             ]);
             ingest(radarTokens, setRadar);
@@ -719,12 +726,7 @@ export default function App() {
                 {opened.kingOfHill ? " · king of the hill" : ""}
               </p>
               <div className="actions">
-                <button
-                  className="mini"
-                  onClick={() => void navigator.clipboard.writeText(opened.tokenAddress)}
-                >
-                  Copy CA
-                </button>
+                <TradeButtons token={opened} />
                 <button className="mini" onClick={() => setOpenId(null)}>
                   Close
                 </button>
@@ -734,6 +736,29 @@ export default function App() {
           <h2>Live X shortcuts</h2>
           <p>Open Twitter/X search in a new tab. These queries catch ticker and contract chatter.</p>
           <div className="actions">
+            {opened && (
+              <>
+                <a
+                  className="mini x"
+                  href={liveSearchUrl(tokenSearchQuery(opened.symbol, opened.tokenAddress))}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  ${opened.symbol} on X
+                </a>
+                <a className="mini x" href={caSearchUrl(opened.tokenAddress)} target="_blank" rel="noreferrer">
+                  This CA on X
+                </a>
+                <a
+                  className="mini padre"
+                  href={padreTradeUrl(opened.chainId, opened.tokenAddress)}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Padre
+                </a>
+              </>
+            )}
             <a className="mini x" href={liveSearchUrl("$SOL memecoin")} target="_blank" rel="noreferrer">
               $SOL memecoin
             </a>
@@ -806,6 +831,14 @@ export default function App() {
                 <a className="mini x" href={xUrl(token)} target="_blank" rel="noreferrer">
                   X
                 </a>
+                <a
+                  className="mini padre"
+                  href={padreTradeUrl(token.chainId, token.tokenAddress)}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Padre
+                </a>
               </div>
             ))
           )}
@@ -854,6 +887,27 @@ function sortTokens(tokens: TrackedToken[], mode: "newest" | "hype" | "likes"): 
     copy.sort((a, b) => scoreTokenHype(b).score - scoreTokenHype(a).score);
   }
   return copy;
+}
+
+function TradeButtons({ token }: { token: TrackedToken }) {
+  return (
+    <>
+      <button
+        className="mini"
+        onClick={() => void navigator.clipboard.writeText(token.tokenAddress)}
+      >
+        Copy CA
+      </button>
+      <a
+        className="mini padre"
+        href={padreTradeUrl(token.chainId, token.tokenAddress)}
+        target="_blank"
+        rel="noreferrer"
+      >
+        Padre
+      </a>
+    </>
+  );
 }
 
 function xUrl(token: TrackedToken): string {
@@ -1037,6 +1091,9 @@ function TokenCard({
         >
           Live mentions
         </a>
+        <a className="mini x" href={caSearchUrl(token.tokenAddress)} target="_blank" rel="noreferrer">
+          CA on X
+        </a>
         <a className="mini" href={token.dexUrl} target="_blank" rel="noreferrer">
           Chart
         </a>
@@ -1050,12 +1107,7 @@ function TokenCard({
             Web
           </a>
         )}
-        <button
-          className="mini"
-          onClick={() => void navigator.clipboard.writeText(token.tokenAddress)}
-        >
-          Copy CA
-        </button>
+        <TradeButtons token={token} />
         <button className="mini" onClick={onWatch}>
           {watched ? "Unwatch" : "Watch"}
         </button>

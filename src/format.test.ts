@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { coinAgeBucket, coinAgeLabel, toMillis, tweetInteractions } from "./format";
+import { coinAgeBucket, coinAgeLabel, padreTradeUrl, toMillis, tweetInteractions } from "./format";
 
 describe("tweetInteractions", () => {
   it("sums likes, RTs, replies, quotes, and bookmarks", () => {
@@ -16,6 +16,16 @@ describe("tweetInteractions", () => {
 
   it("stays empty when no tweet stats exist", () => {
     expect(tweetInteractions({})).toBeUndefined();
+  });
+});
+
+describe("padreTradeUrl", () => {
+  it("opens the exact coin on Padre for Solana, BNB, ETH, and Base", () => {
+    expect(padreTradeUrl("solana", "Abc123pump")).toBe("https://trade.padre.gg/trade/solana/Abc123pump");
+    expect(padreTradeUrl("bsc", "0xabc")).toBe("https://trade.padre.gg/trade/bsc/0xabc");
+    expect(padreTradeUrl("bnb", "0xabc")).toBe("https://trade.padre.gg/trade/bsc/0xabc");
+    expect(padreTradeUrl("ethereum", "0xdef")).toBe("https://trade.padre.gg/trade/ethereum/0xdef");
+    expect(padreTradeUrl("base", "0x111")).toBe("https://trade.padre.gg/trade/base/0x111");
   });
 });
 

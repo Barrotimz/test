@@ -107,6 +107,8 @@ function mergeBoost(boost: DexBoost, pair?: DexTokenPair): TrackedToken {
   const links = [...(boost.links ?? []), ...(pair?.info?.socials ?? [])];
   const fromPair = pair ? pairToToken(pair, boost.amount != null ? "boost" : "profile") : undefined;
   const chainId = normalizeChain(boost.chainId);
+  const twitter = pickLink(links, "twitter") ?? fromPair?.twitterUrl;
+  const tweetId = firstTweetId(twitter, boost.description ?? undefined, fromPair?.description, fromPair?.websiteUrl);
   return {
     ...fromPair,
     id: `${chainId}:${boost.tokenAddress}`,
@@ -117,12 +119,14 @@ function mergeBoost(boost: DexBoost, pair?: DexTokenPair): TrackedToken {
     description: boost.description ?? fromPair?.description,
     imageUrl: tokenImage(chainId, boost.tokenAddress, fromPair?.imageUrl ?? boost.icon ?? undefined),
     boostAmount: boost.totalAmount ?? boost.amount ?? fromPair?.boostAmount,
-    twitterUrl: pickLink(links, "twitter") ?? fromPair?.twitterUrl,
+    twitterUrl: twitter,
     telegramUrl: pickLink(links, "telegram") ?? fromPair?.telegramUrl,
     websiteUrl:
       links.find((link) => !link.type || link.type === "website")?.url ?? fromPair?.websiteUrl,
     dexUrl: boost.url ?? fromPair?.dexUrl ?? `https://dexscreener.com/${chainId}/${boost.tokenAddress}`,
     pairCreatedAt: fromPair?.pairCreatedAt,
+    tweetUrl: tweetId ? `https://x.com/i/web/status/${tweetId}` : fromPair?.tweetUrl,
+    twitterHandle: twitterHandle(twitter) ?? fromPair?.twitterHandle,
     stage: "live",
     seenAt: Date.now(),
     source: boost.amount != null ? "boost" : "profile",

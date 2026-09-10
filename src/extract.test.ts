@@ -24,6 +24,10 @@ describe("extractMentions", () => {
     expect(mentions.tweetIds).toEqual(["20", "1234567890"]);
   });
 
+  it("also reads fixupx status links", () => {
+    expect(extractMentions("https://fixupx.com/foo/status/99").tweetIds).toEqual(["99"]);
+  });
+
   it("finds the first status id across mixed social fields", () => {
     expect(
       firstTweetId("https://x.com/just_anon_sf/status/2097848630296092846?s=20", "https://otcdesks.cash"),
