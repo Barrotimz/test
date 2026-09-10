@@ -92,4 +92,33 @@ describe("learnFromTokens", () => {
     const possibles = pickPossibleRunners([maybe, dust], learned.brain);
     expect(possibles.map((row) => row.symbol)).toContain("NEXT");
   });
+
+  it("scores a DESKTOP-style copycat after a LAPTOP million-rip", () => {
+    const now = Date.now();
+    const laptop = base({
+      id: "solana:laptop",
+      symbol: "LAPTOP",
+      name: "Laptop",
+      marketCap: 3_200_000,
+      pairCreatedAt: now - 2 * 60 * 60_000,
+    });
+    const learned = learnFromTokens(emptyBrain(), [laptop], now);
+    const desktop = base({
+      id: "solana:desktop",
+      symbol: "DESKTOP",
+      name: "Desktop",
+      tweetLikes: 12,
+      pairCreatedAt: now - 15 * 60_000,
+    });
+    const other = base({
+      id: "solana:zzz",
+      symbol: "ZZZ",
+      name: "Zzz",
+      tweetLikes: 12,
+      pairCreatedAt: now - 15 * 60_000,
+    });
+    const deskCall = scoreAgainstBrain(desktop, learned.brain);
+    expect(deskCall.reasons.join(" ")).toMatch(/LAPTOP|computer/i);
+    expect(deskCall.score).toBeGreaterThan(scoreAgainstBrain(other, learned.brain).score);
+  });
 });

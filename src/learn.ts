@@ -1,4 +1,5 @@
 import { compactUsd, pairAgeMs, tweetInteractions } from "./format";
+import { matchingRipMeta } from "./meta";
 import type { TrackedToken } from "./types";
 
 export type RunnerLesson = {
@@ -268,6 +269,11 @@ export function scoreAgainstBrain(token: TrackedToken, brain: RunnerBrain): Runn
   if ((token.marketCap ?? 0) >= 80_000 && (token.marketCap ?? 0) < 1_000_000) {
     score += 10;
     reasons.push("already leaving micro-mcap, same first step million-runners took");
+  }
+  const metaHit = matchingRipMeta(token, brain.lessons);
+  if (metaHit) {
+    score += 18;
+    reasons.push(`same meta as $${metaHit.seedSymbol} (${metaHit.label})`);
   }
 
   const capped = Math.min(100, score);

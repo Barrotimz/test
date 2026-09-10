@@ -45,6 +45,7 @@ import {
 } from "./format";
 import { DEFAULT_KOLS } from "./kols";
 import { analyzeToken, heatRank, pickAnalyzedRunners, pickByHeat, uniqueTokens } from "./analyze";
+import { detectTodayMetas, metaForToken, metaSearchQueries, pickMetaCoins, type TodayMeta } from "./meta";
 import {
   brainInsights,
   emptyBrain,
@@ -59,38 +60,43 @@ const KOL_KEY = "xmeme-kols";
 const LEARN_KEY = "xmeme-runner-brain";
 const TABS: { id: TabId; label: string; heat?: boolean }[] = [
   { id: "trending", label: "Trending", heat: true },
+  { id: "meta", label: "Today's meta", heat: true },
   { id: "hot", label: "Hot", heat: true },
   { id: "warm", label: "Warm", heat: true },
   { id: "launch", label: "Fresh", heat: true },
   { id: "cooling", label: "Cooling", heat: true },
-  { id: "learn", label: "Learned rips" },
-  { id: "radar", label: "Twitter radar" },
+  { id: "learn", label: "Rips" },
+  { id: "radar", label: "Radar" },
   { id: "boosts", label: "Boosted" },
-  { id: "scanner", label: "CA scanner" },
-  { id: "kols", label: "KOL watch" },
-  { id: "watch", label: "Watchlist" },
+  { id: "scanner", label: "Scanner" },
+  { id: "kols", label: "KOLs" },
+  { id: "watch", label: "Watch" },
 ];
 
 const HEAT_COPY: Partial<Record<TabId, { title: string; body: string }>> = {
   trending: {
-    title: "Already moving on the market",
-    body: "GeckoTerminal trending pools, sorted hottest first. Next tabs are earlier: Hot (our strongest reads), Warm (heating up), Fresh (just launched), then Cooling (dumps and traps).",
+    title: "Trending now",
+    body: "What the market is already chasing. Next: today's meta (copycats), then Hot → Warm → Fresh → Cooling.",
+  },
+  meta: {
+    title: "Today's meta — copy the rip",
+    body: "If $LAPTOP runs to millions, $DESKTOP and the rest of that category show up here. Same bag, side by side.",
   },
   hot: {
-    title: "Hot — strongest reads right now",
-    body: "Cross-cut of every live bag: aligned momentum, real X heat with volume, or a runner-shaped setup. Not every trending pool lands here.",
+    title: "Hot",
+    body: "Strongest reads: momentum + real X heat + volume. Not every trending pool.",
   },
   warm: {
-    title: "Warm — heating up, not confirmed yet",
-    body: "Mixed analysis, early social, late bonding, livestreams, or king-of-the-hill. Same early tells million-runners had before they ripped.",
+    title: "Warm",
+    body: "Heating up — early social, late bonding, livestreams. Not confirmed yet.",
   },
   launch: {
-    title: "Fresh — new pools and bonding coins",
-    body: "Pump.fun, Bags, BNB, Robinhood, and global new pools. Sorted by heat so the ones already warming float up.",
+    title: "Fresh",
+    body: "New pools and bonding coins, hottest first.",
   },
   cooling: {
-    title: "Cooling — dumps and trap-shaped prints",
-    body: "Coins the analysis marks as trap or already dumping. Useful so you do not chase a candle that already exited.",
+    title: "Cooling",
+    body: "Dumps and traps. Skip these if you are late.",
   },
 };
 
@@ -134,6 +140,8 @@ export default function App() {
   const [ageFilter, setAgeFilter] = useState<"all" | "fresh" | "bonding">("all");
   const [socialFilter, setSocialFilter] = useState<"all" | "twitter" | "likes">("all");
   const [padFilter, setPadFilter] = useState<string>("all");
+  const [showFilters, setShowFilters] = useState(false);
+  const [metaFilter, setMetaFilter] = useState<string>("all");
   const [brain, setBrain] = useState<RunnerBrain>(() => loadJson(LEARN_KEY, emptyBrain()));
 
   const knownIds = useRef(new Set<string>());
@@ -252,6 +260,18 @@ export default function App() {
             .then((rows) => ingest(rows, setTrending))
             .catch(() => undefined),
         );
+      }
+      if (tick % 6 === 3) {
+        const bag = uniqueTokens(Object.values(bagsRef.current).flat());
+        const queries = metaSearchQueries(detectTodayMetas(bag, brainRef.current.lessons));
+        const query = queries[(Math.floor(tick / 6) % Math.max(queries.length, 1))];
+        if (query) {
+          jobs.push(
+            searchTokens(query)
+              .then((rows) => ingest(rows, setTrending))
+              .catch(() => undefined),
+          );
+        }
       }
       if (tick % 2 === 1) {
         jobs.push(
@@ -418,6 +438,12 @@ export default function App() {
   const hotList = useMemo(() => pickByHeat(allLive, brain, "hot", analysisOf), [allLive, brain, analysisOf]);
   const warmList = useMemo(() => pickByHeat(allLive, brain, "warm", analysisOf), [allLive, brain, analysisOf]);
   const coolingList = useMemo(() => pickByHeat(allLive, brain, "trap", analysisOf), [allLive, brain, analysisOf]);
+  const todayMetas = useMemo(() => detectTodayMetas(allLive, brain.lessons), [allLive, brain.lessons]);
+  const activeMetas = useMemo(
+    () => (metaFilter === "all" ? todayMetas : todayMetas.filter((meta) => meta.id === metaFilter)),
+    [todayMetas, metaFilter],
+  );
+  const metaList = useMemo(() => pickMetaCoins(allLive, activeMetas), [allLive, activeMetas]);
   const visible = sortTokens(
     pickTokens(tab, {
       launch: launching,
@@ -430,6 +456,7 @@ export default function App() {
       query,
       brain,
       analyze: analysisOf,
+      metaCoins: metaList,
     }).filter((token) => {
       if (enabledChains.length > 0 && enabledChains.length !== CHAINS.length) {
         if (!enabledChains.includes(normalizeChain(token.chainId))) return false;
@@ -444,7 +471,13 @@ export default function App() {
       const hay = `${token.symbol} ${token.name} ${token.tokenAddress} ${token.chainId} ${token.launchpad ?? ""} ${token.twitterHandle ?? ""}`.toLowerCase();
       return hay.includes(needle);
     }),
-    tab === "learn" ? "learn" : tab === "hot" || tab === "warm" || tab === "cooling" ? "heat" : sortMode,
+    tab === "learn"
+      ? "learn"
+      : tab === "meta"
+        ? "keep"
+        : tab === "hot" || tab === "warm" || tab === "cooling"
+          ? "heat"
+          : sortMode,
     brain,
     analysisOf,
   );
@@ -457,7 +490,7 @@ export default function App() {
           <div className="logo">XR</div>
           <div>
             <h1>XMeme Radar</h1>
-            <p>Continuous sniffer for upcoming and just-launched coins on BNB, Robinhood, Solana, ETH, Base, and every other chain we can reach — plus tweet likes when a post is attached.</p>
+            <p>Today's meta, then heat. More coins on one screen.</p>
           </div>
         </div>
         <form className="search-wrap" onSubmit={onSearch}>
@@ -500,25 +533,41 @@ export default function App() {
         </form>
       </header>
 
-      <div className="banner">
-        <h2>What this tracks</h2>
-        <p>
-          Tabs run hottest to coolest: Trending → Hot → Warm → Fresh → Cooling. Launching still
-          pulls pump.fun, Bags, BNB (Four.meme), Robinhood, and a global new-pool feed. Filter by
-          launchpad below. Tweet likes land on the card when an X post is attached.
-        </p>
-      </div>
-
       <div className="stats">
         <span className={`status ${status}`} />
-        <b>{enabledChains.length}</b> chains
-        <b>{seen}</b> new this session
-        <b>{launching.filter((token) => token.tweetLikes != null).length}</b> with likes
+        <b>{todayMetas.length}</b> metas
         <b>{hotList.length}</b> hot
         <b>{warmList.length}</b> warm
-        <b>{launching.length + radar.length + boosts.length + trending.length}</b> in memory
+        <b>{seen}</b> new
+        <b>{allLive.length}</b> live
         <span>{updatedAt ? `scan ${ageLabel(updatedAt)} ago` : "starting…"}</span>
+        <button type="button" className="ghost" onClick={() => setShowFilters((on) => !on)}>
+          {showFilters ? "Hide filters" : "Filters"}
+        </button>
       </div>
+      {todayMetas.length > 0 && (
+        <div className="meta-strip">
+          {todayMetas.map((meta) => (
+            <button
+              key={meta.id}
+              type="button"
+              className={`chip ${metaFilter === meta.id || tab === "meta" ? "on" : ""}`}
+              onClick={() => {
+                setMetaFilter(meta.id);
+                setTab("meta");
+              }}
+            >
+              ${meta.seedSymbol}
+              {meta.seedMcap ? ` ${compactUsd(meta.seedMcap)}` : ""} → {meta.label}
+            </button>
+          ))}
+          {metaFilter !== "all" && (
+            <button type="button" className="chip" onClick={() => setMetaFilter("all")}>
+              All metas
+            </button>
+          )}
+        </div>
+      )}
       <div className="tape">
         {events.length === 0 ? <span className="sub">Waiting for the next launch…</span> : null}
         {events.slice(0, 8).map((event) => (
@@ -527,7 +576,7 @@ export default function App() {
           </span>
         ))}
       </div>
-      <div className="chips chain-chips">
+      <div className={`chips chain-chips ${showFilters ? "" : "hidden-filters"}`}>
         <button
           type="button"
           className="chip"
@@ -557,7 +606,7 @@ export default function App() {
         ))}
       </div>
 
-      <div className="chips filters">
+      <div className={`chips filters ${showFilters ? "" : "hidden-filters"}`}>
         <button
           type="button"
           className={`chip ${padFilter === "all" ? "on" : ""}`}
@@ -576,7 +625,7 @@ export default function App() {
           </button>
         ))}
       </div>
-      <div className="chips filters">
+      <div className={`chips filters ${showFilters ? "" : "hidden-filters"}`}>
         {[
           { id: "all", label: "All ages" },
           { id: "fresh", label: "Last hour" },
@@ -631,14 +680,16 @@ export default function App() {
                           ? ` (${warmList.length})`
                           : item.id === "cooling"
                             ? ` (${coolingList.length})`
-                            : item.id === "learn"
-                              ? ` (${brain.studied})`
-                              : ""}
+                            : item.id === "meta"
+                              ? ` (${metaList.length})`
+                              : item.id === "learn"
+                                ? ` (${brain.studied})`
+                                : ""}
           </button>
         ))}
       </nav>
 
-      <div className="grid">
+      <div className={`grid ${opened ? "open" : ""}`}>
         <section>
           {HEAT_COPY[tab] && (
             <div className="banner">
@@ -772,7 +823,9 @@ export default function App() {
             <p className="empty">
               {tab === "learn"
                 ? "No setups match the learned rips yet. Keep the sniffer running."
-                : tab === "hot"
+                : tab === "meta"
+                  ? "No category rip yet. When something like $LAPTOP hits millions, $DESKTOP and the rest of that bag land here."
+                  : tab === "hot"
                   ? "Nothing is hot right now. Check Warm or Fresh for earlier tells."
                   : tab === "warm"
                     ? "No coins are warming yet. Fresh launches show up next."
@@ -800,12 +853,14 @@ export default function App() {
                   rugError={rugError[token.id]}
                   onRugCheck={() => void runRugCheck(token)}
                   analysis={analysisOf(token)}
+                  meta={metaForToken(token, todayMetas)}
                 />
               ))}
             </div>
           )}
         </section>
 
+        {opened && (
         <aside className="side">
           {opened && (
             <>
@@ -1034,6 +1089,7 @@ export default function App() {
             ))
           )}
         </aside>
+        )}
       </div>
 
       <p className="notice">
@@ -1057,12 +1113,14 @@ function pickTokens(
     query: string;
     brain: RunnerBrain;
     analyze: (token: TrackedToken) => ReturnType<typeof analyzeToken>;
+    metaCoins: TrackedToken[];
   },
 ): TrackedToken[] {
   const live = [...bags.launch, ...bags.radar, ...bags.trending, ...bags.boosts];
   if (tab === "scanner") return bags.scanned;
   if (tab === "kols") return [];
   if (tab === "learn") return pickAnalyzedRunners(live, bags.brain);
+  if (tab === "meta") return bags.metaCoins;
   if (tab === "hot") return pickByHeat(live, bags.brain, "hot", bags.analyze);
   if (tab === "warm") return pickByHeat(live, bags.brain, "warm", bags.analyze);
   if (tab === "cooling") return pickByHeat(live, bags.brain, "trap", bags.analyze);
@@ -1076,11 +1134,12 @@ function pickTokens(
 
 function sortTokens(
   tokens: TrackedToken[],
-  mode: "heat" | "newest" | "hype" | "likes" | "learn",
+  mode: "heat" | "newest" | "hype" | "likes" | "learn" | "keep",
   brain: RunnerBrain = emptyBrain(),
   analyze: (token: TrackedToken) => ReturnType<typeof analyzeToken> = (token) => analyzeToken(token, brain),
 ): TrackedToken[] {
   const copy = [...tokens];
+  if (mode === "keep") return copy;
   if (mode === "heat") {
     copy.sort((a, b) => {
       const left = analyze(a);
@@ -1133,13 +1192,14 @@ function AnalysisPanel({
   analysis: ReturnType<typeof analyzeToken>;
   compact?: boolean;
 }) {
-  const notes = compact ? analysis.notes.slice(0, 2) : analysis.notes;
+  const notes = compact ? [] : analysis.notes;
   return (
     <div className={`analysis ${analysis.verdict}`}>
       <div className="analysis-head">
-        <b>{analysis.verdict} analysis</b>
+        <b>{analysis.verdict}</b>
         <span>
-          {analysis.heat} · {analysis.momentum} · {analysis.social} social · {analysis.flow} flow · {analysis.score}
+          {analysis.heat}
+          {compact ? ` · ${analysis.score}` : ` · ${analysis.momentum} · ${analysis.social} · ${analysis.flow} · ${analysis.score}`}
         </span>
       </div>
       {notes.map((note) => (
@@ -1151,10 +1211,21 @@ function AnalysisPanel({
   );
 }
 
-function TweetPulse({ token }: { token: TrackedToken }) {
+function TweetPulse({ token, compact = false }: { token: TrackedToken; compact?: boolean }) {
   const handle = token.twitterHandle ?? twitterHandle(token.twitterUrl);
   const interactions = tweetInteractions(token);
   const posted = hasTweetPost(token) || token.tweetLikes != null;
+  if (compact) {
+    if (!posted) return null;
+    return (
+      <div className="tweet-pulse compact">
+        <b>X</b>
+        <span>{compactCount(token.tweetLikes)} likes</span>
+        <span>{compactCount(interactions)} hits</span>
+        {token.tweetViews != null && <span>{compactCount(token.tweetViews)} views</span>}
+      </div>
+    );
+  }
   if (!posted && !handle && !token.twitterUrl) {
     return <div className="tweet-pulse empty">No X post attached yet</div>;
   }
@@ -1221,6 +1292,7 @@ function TokenCard({
   rugError,
   onRugCheck,
   analysis,
+  meta,
 }: {
   token: TrackedToken;
   watched: boolean;
@@ -1231,15 +1303,14 @@ function TokenCard({
   rugError?: string;
   onRugCheck: () => void;
   analysis: ReturnType<typeof analyzeToken>;
+  meta?: TodayMeta;
 }) {
-  const call = analysis.call;
   const [imgOk, setImgOk] = useState(true);
   const handle = twitterHandle(token.twitterUrl);
   const change = token.change1h ?? token.change24h;
-  const hype = scoreTokenHype(token);
   const ageBucket = coinAgeBucket(token.pairCreatedAt);
   return (
-    <article className="card" onClick={onOpen}>
+    <article className="card compact-card" onClick={onOpen}>
       <div className="card-head">
         {imgOk && token.imageUrl ? (
           <img className="avatar" src={token.imageUrl} alt="" onError={() => setImgOk(false)} />
@@ -1249,43 +1320,25 @@ function TokenCard({
         <div className="grow">
           <div className="sym">${token.symbol}</div>
           <div className="sub">
-            {token.name} · {chainLabel(token.chainId)}
-            {token.launchpad ? ` · ${token.launchpad}` : ""} · {shortAddress(token.tokenAddress)}
+            {chainLabel(token.chainId)}
+            {token.launchpad ? ` · ${token.launchpad}` : ""}
             {token.livestream ? " · LIVE" : ""}
-            {token.stage === "launching" ? " · bonding" : ""}
           </div>
         </div>
-        <span className={`badge ${ageBucket}`} title="Age of the main trading pair">
-          {ageBucket === "fresh" ? `new ${coinAgeLabel(token.pairCreatedAt)}` : coinAgeLabel(token.pairCreatedAt)}
-        </span>
-        <span className={`badge ${hype.level}`} title="Market hype from volume, pump, and boosts">
-          {hype.level}
-        </span>
-        <span className={`badge ${analysis.heat}`} title="Heat lane: hot → warm → fresh → quiet / trap">
-          {analysis.heat}
-        </span>
-        {call.level !== "watch" && (
-          <span className={`badge ${call.level}`} title={call.reasons.join(" · ")}>
-            {call.level}
+        <span className={`badge ${analysis.heat}`}>{analysis.heat}</span>
+        {meta && (
+          <span className="badge meta" title={meta.why}>
+            {meta.seedSymbol === token.symbol ? "meta seed" : `w/ $${meta.seedSymbol}`}
           </span>
         )}
         {rug && <span className={`badge ${rug.level}`}>{rug.level}</span>}
       </div>
-      {token.description && <div className="desc">{token.description}</div>}
       <AnalysisPanel analysis={analysis} compact />
-      <TweetPulse token={token} />
+      <TweetPulse token={token} compact />
       <div className="metrics">
-        <div>
-          <span>Price</span>
-          {compactPrice(token.priceUsd)}
-        </div>
         <div>
           <span>Mcap</span>
           {compactUsd(token.marketCap)}
-        </div>
-        <div>
-          <span>Liq</span>
-          {compactUsd(token.liquidity)}
         </div>
         <div>
           <span>1h</span>
@@ -1296,20 +1349,8 @@ function TokenCard({
           <b className={ageBucket}>{coinAgeLabel(token.pairCreatedAt)}</b>
         </div>
         <div>
-          <span>5m vol</span>
-          {compactUsd(token.volume5m)}
-        </div>
-        <div>
-          <span>Buys 1h</span>
-          {compactCount(token.buys1h)}
-        </div>
-        <div>
-          <span>Sells 1h</span>
-          {compactCount(token.sells1h)}
-        </div>
-        <div>
-          <span>Pump replies</span>
-          {compactCount(token.replies)}
+          <span>Likes</span>
+          {compactCount(token.tweetLikes)}
         </div>
       </div>
       {token.bondingPct != null && token.stage === "launching" && (
@@ -1318,51 +1359,20 @@ function TokenCard({
           <span>bonding {token.bondingPct}%</span>
         </div>
       )}
-      {rug && (
-        <ul className="flags">
-          {rug.flags.slice(0, 6).map((flag) => (
-            <li key={flag.id} className={flag.level}>
-              <b>{flag.label}</b>
-              <span>{flag.detail}</span>
-            </li>
-          ))}
-        </ul>
-      )}
       {rugError && <p className="empty">{rugError}</p>}
       <div className="actions" onClick={(event) => event.stopPropagation()}>
         <a className="mini x" href={xUrl(token)} target="_blank" rel="noreferrer">
-          {handle ? `@${handle}` : "X search"}
-        </a>
-        <a
-          className="mini x"
-          href={liveSearchUrl(tokenSearchQuery(token.symbol, token.tokenAddress))}
-          target="_blank"
-          rel="noreferrer"
-        >
-          Live mentions
-        </a>
-        <a className="mini x" href={caSearchUrl(token.tokenAddress)} target="_blank" rel="noreferrer">
-          CA on X
+          {handle ? `@${handle}` : "X"}
         </a>
         <a className="mini" href={token.dexUrl} target="_blank" rel="noreferrer">
           Chart
         </a>
-        {token.telegramUrl && (
-          <a className="mini" href={token.telegramUrl} target="_blank" rel="noreferrer">
-            TG
-          </a>
-        )}
-        {token.websiteUrl && (
-          <a className="mini" href={token.websiteUrl} target="_blank" rel="noreferrer">
-            Web
-          </a>
-        )}
         <TradeButtons token={token} />
         <button className="mini" onClick={onWatch}>
           {watched ? "Unwatch" : "Watch"}
         </button>
         <button className="mini rug" onClick={onRugCheck} disabled={rugBusy}>
-          {rugBusy ? "Checking…" : rug ? "Re-check" : "Rug check"}
+          {rugBusy ? "…" : "Rug"}
         </button>
       </div>
     </article>

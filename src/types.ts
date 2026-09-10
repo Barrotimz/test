@@ -110,6 +110,7 @@ export type Kol = {
 
 export type TabId =
   | "trending"
+  | "meta"
   | "hot"
   | "warm"
   | "launch"

@@ -51,9 +51,9 @@ img {
 }
 
 .app {
-  max-width: 1280px;
+  max-width: 1680px;
   margin: 0 auto;
-  padding: 24px 20px 64px;
+  padding: 16px 16px 48px;
 }
 
 .topbar {
@@ -150,7 +150,8 @@ img {
 }
 
 .tabs button.heat-trending:not(.active),
-.tabs button.heat-hot:not(.active) {
+.tabs button.heat-hot:not(.active),
+.tabs button.heat-meta:not(.active) {
   color: #ff8a4a;
 }
 
@@ -168,14 +169,29 @@ img {
 
 .grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
-  gap: 18px;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
+.grid.open {
+  grid-template-columns: minmax(0, 1fr) 300px;
 }
 
 .cards {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 8px;
+}
+
+.hidden-filters {
+  display: none;
+}
+
+.meta-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 12px;
 }
 
 .card,
@@ -188,11 +204,11 @@ img {
 }
 
 .card {
-  padding: 14px;
+  padding: 10px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  min-height: 210px;
+  gap: 6px;
+  min-height: 0;
   transition: border-color 0.15s ease, transform 0.15s ease;
 }
 
@@ -278,7 +294,8 @@ img {
   color: var(--muted);
 }
 
-.badge.fresh {
+.badge.fresh,
+.badge.meta {
   background: #24380f;
   color: var(--lime);
 }
@@ -369,8 +386,8 @@ img {
 }
 
 .avatar {
-  width: 42px;
-  height: 42px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   object-fit: cover;
   background: #123;
@@ -396,10 +413,10 @@ img {
 
 .metrics {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
   font-family: "IBM Plex Mono", monospace;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .metrics span {
@@ -492,6 +509,19 @@ img {
   border: 1px solid #1d4d63;
   border-radius: 12px;
   padding: 8px 10px;
+}
+
+.tweet-pulse.compact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: baseline;
+  padding: 4px 8px;
+  font-size: 11px;
+}
+
+.tweet-pulse.compact b {
+  color: var(--cyan);
 }
 
 .tweet-pulse.empty,

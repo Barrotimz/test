@@ -15,7 +15,8 @@ If you want sub-second tweet alerts into Telegram/Discord/bots:
 
 ## What this app does
 
-- **Heat tabs** (hottest → coolest): **Trending** → **Hot** → **Warm** → **Fresh** → **Cooling**. Cards default-sort the same way. Heat is an analysis lane (momentum + X + flow), not just “on the trending feed”.
+- **Heat tabs** (hottest → coolest): **Trending** → **Today's meta** → **Hot** → **Warm** → **Fresh** → **Cooling**. Cards default-sort the same way. Heat is an analysis lane (momentum + X + flow), not just “on the trending feed”.
+- **Today's meta** — when a coin like $LAPTOP runs to millions, the same-category bag ($DESKTOP, $KEYBOARD, …) is listed beside it. The app also searches DexScreener for those related names.
 - **Trending** — GeckoTerminal trending pools, sorted by heat
 - **Hot / Warm** — cross-cut of every live bag: strongest reads, then coins that are only heating up
 - **Fresh** — new pools and bonding coins (pump.fun, Bags, BNB / Four.meme, Robinhood, global Gecko). Filter by launchpad chip.

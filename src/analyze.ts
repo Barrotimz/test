@@ -1,5 +1,6 @@
 import { coinAgeBucket, pairAgeMs, tweetInteractions } from "./format";
 import { scoreAgainstBrain, type RunnerBrain, type RunnerCall } from "./learn";
+import { matchingRipMeta } from "./meta";
 import type { RugReport } from "./rug";
 import type { TrackedToken } from "./types";
 
@@ -141,6 +142,14 @@ export function analyzeToken(token: TrackedToken, brain: RunnerBrain, rug?: RugR
   if (token.bondingPct != null && token.bondingPct >= 80) {
     score += 5;
     notes.push({ side: "for", text: `Bonding curve is ${token.bondingPct}% — close to graduation` });
+  }
+  const metaHit = matchingRipMeta(token, brain.lessons);
+  if (metaHit) {
+    score += 12;
+    notes.push({
+      side: "for",
+      text: `Same meta as $${metaHit.seedSymbol} (${metaHit.label}) — copycat of today's rip`,
+    });
   }
 
   if (rug?.level === "danger") {
