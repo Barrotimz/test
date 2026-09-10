@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { bondingPct } from "./api";
-import { eventsForNew, mergeLists } from "./merge";
+import { eventsForNew, mergeLists, overlayLive, rotateSlice } from "./merge";
 import type { TrackedToken } from "./types";
 
 const token = (id: string, extra: Partial<TrackedToken> = {}): TrackedToken => ({
@@ -40,6 +40,25 @@ describe("mergeLists", () => {
     const events = eventsForNew([token("a"), token("b", { symbol: "NEW", stage: "launching" })], known);
     expect(events).toHaveLength(1);
     expect(events[0].text).toContain("$NEW");
+  });
+});
+
+describe("overlayLive", () => {
+  it("paints the merged live bag so twitter and viewers survive a gecko reprint", () => {
+    const cards = [token("a", { marketCap: 9_000, source: "trending" })];
+    const live = [token("a", { twitterUrl: "https://x.com/foo/status/1", viewers: 40, livestream: true, marketCap: 11_000 })];
+    const painted = overlayLive(cards, live);
+    expect(painted[0].twitterUrl).toContain("/status/1");
+    expect(painted[0].viewers).toBe(40);
+    expect(painted[0].marketCap).toBe(11_000);
+  });
+});
+
+describe("rotateSlice", () => {
+  it("pages through a list and wraps", () => {
+    expect(rotateSlice(["a", "b", "c", "d"], 0, 2)).toEqual(["a", "b"]);
+    expect(rotateSlice(["a", "b", "c", "d"], 2, 2)).toEqual(["c", "d"]);
+    expect(rotateSlice(["a", "b", "c", "d"], 3, 2)).toEqual(["d", "a"]);
   });
 });
 

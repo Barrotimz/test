@@ -2,7 +2,7 @@ import { geckoNetworkId, normalizeChain, normalizeTokenAddress, tokenId } from "
 import { launchpadFromDex } from "./launchpads";
 import { firstTweetId } from "./extract";
 import { tokenImage, twitterHandle } from "./format";
-import { defined } from "./merge";
+import { defined, mergeToken, rotateSlice } from "./merge";
 import { attachXTrail, hasXTrail, pickTwitterUrl } from "./social";
 import type { DexBoost, DexTokenPair, TrackedToken } from "./types";
 
@@ -11,8 +11,43 @@ const GECKO = import.meta.env.DEV ? "/gecko" : "https://api.geckoterminal.com";
 const PUMP = import.meta.env.DEV ? "/pump" : "https://frontend-api-v3.pump.fun";
 const BAGS = import.meta.env.DEV ? "/bags" : "https://public-api-v2.bags.fm";
 
+const DEX_STAGGER_MS = 220;
+const DEX_COOL_START_MS = 8_000;
+const DEX_COOL_MAX_MS = 45_000;
+
+let dexCooldownUntil = 0;
+let dexStrikeMs = DEX_COOL_START_MS;
+
+export function dexIsCooling(now = Date.now()): boolean {
+  return now < dexCooldownUntil;
+}
+
+export function dexCooldownLeft(now = Date.now()): number {
+  return Math.max(0, dexCooldownUntil - now);
+}
+
+export function resetDexCooldown() {
+  dexCooldownUntil = 0;
+  dexStrikeMs = DEX_COOL_START_MS;
+}
+
+export function noteDexStatus(status: number, now = Date.now()) {
+  if (status === 429) {
+    dexStrikeMs = Math.min(DEX_COOL_MAX_MS, Math.round(dexStrikeMs * 1.5) || DEX_COOL_START_MS);
+    dexCooldownUntil = now + dexStrikeMs;
+    return;
+  }
+  if (status >= 200 && status < 400) dexStrikeMs = DEX_COOL_START_MS;
+}
+
+function isDexUrl(url: string): boolean {
+  return url.startsWith(DEX) || url.includes("api.dexscreener.com");
+}
+
 async function getJson<T>(url: string): Promise<T> {
+  if (isDexUrl(url) && dexIsCooling()) throw new Error(`429 cooling ${url}`);
   const response = await fetch(url);
+  if (isDexUrl(url)) noteDexStatus(response.status);
   if (!response.ok) throw new Error(`${response.status} ${url}`);
   return (await response.json()) as T;
 }
@@ -85,7 +120,7 @@ export async function fetchProfiles(): Promise<DexBoost[]> {
 }
 
 export async function fetchTokenPairs(chainId: string, addresses: string[]): Promise<DexTokenPair[]> {
-  if (addresses.length === 0) return [];
+  if (addresses.length === 0 || dexIsCooling()) return [];
   const chunkSize = 25;
   const chunks: string[][] = [];
   for (let i = 0; i < addresses.length; i += chunkSize) {
@@ -111,8 +146,21 @@ function roundPct(value?: number): number | undefined {
   return Math.round(value * 10) / 10;
 }
 
-export function quotePatchFromPair(pair: DexTokenPair): Partial<TrackedToken> {
+export function socialPatchFromPair(pair: DexTokenPair): Partial<TrackedToken> {
+  const websites = (pair.info?.websites ?? []).map((site) => site.url);
+  const socials = pair.info?.socials ?? [];
+  const twitter = pickTwitterUrl(socials, ...websites);
+  const tweetId = firstTweetId(twitter, ...websites, ...socials.map((link) => link.url));
   return defined({
+    twitterUrl: twitter,
+    websiteUrl: pair.info?.websites?.[0]?.url,
+    tweetUrl: tweetId ? `https://x.com/i/web/status/${tweetId}` : undefined,
+    twitterHandle: twitterHandle(twitter),
+  });
+}
+
+export function quotePatchFromPair(pair: DexTokenPair, prev?: TrackedToken): Partial<TrackedToken> {
+  const money = defined({
     priceUsd: pair.priceUsd ? Number(pair.priceUsd) : undefined,
     marketCap: roundMoney(pair.marketCap ?? pair.fdv),
     fdv: roundMoney(pair.fdv),
@@ -128,6 +176,10 @@ export function quotePatchFromPair(pair: DexTokenPair): Partial<TrackedToken> {
     buys1h: pair.txns?.h1?.buys,
     sells1h: pair.txns?.h1?.sells,
   });
+  const social = socialPatchFromPair(pair);
+  if (!social.twitterUrl && !social.tweetUrl && !social.websiteUrl) return money;
+  if (firstTweetId(prev?.twitterUrl, prev?.tweetUrl, prev?.websiteUrl, prev?.description)) return money;
+  return { ...money, ...social };
 }
 
 export function quotePatchChanged(prev: TrackedToken, patch: Partial<TrackedToken>): boolean {
@@ -163,7 +215,7 @@ export function selectQuoteTargets(
 export async function refreshQuotes(
   tokens: TrackedToken[],
 ): Promise<{ id: string; patch: Partial<TrackedToken> }[]> {
-  if (tokens.length === 0) return [];
+  if (tokens.length === 0 || dexIsCooling()) return [];
   const byChain = new Map<string, TrackedToken[]>();
   for (const token of tokens) {
     const list = byChain.get(token.chainId) ?? [];
@@ -181,7 +233,7 @@ export async function refreshQuotes(
       for (const item of items) {
         const pair = index.get(`${normalizeChain(item.chainId)}:${item.tokenAddress.toLowerCase()}`);
         if (!pair) continue;
-        rows.push({ id: item.id, patch: quotePatchFromPair(pair) });
+        rows.push({ id: item.id, patch: quotePatchFromPair(pair, item) });
       }
     }),
   );
@@ -189,6 +241,7 @@ export async function refreshQuotes(
 }
 
 export async function searchTokens(query: string): Promise<TrackedToken[]> {
+  if (dexIsCooling()) return [];
   const data = await getJson<{ pairs?: DexTokenPair[] }>(
     `${DEX}/latest/dex/search?q=${encodeURIComponent(query)}`,
   );
@@ -574,26 +627,35 @@ function num(value?: string | null): number | undefined {
 }
 
 export async function searchMany(queries: string[]): Promise<TrackedToken[]> {
-  const rows = await Promise.allSettled(queries.slice(0, 4).map((query) => searchTokens(query)));
   const map = new Map<string, TrackedToken>();
-  for (const row of rows) {
-    if (row.status !== "fulfilled") continue;
-    for (const token of row.value) map.set(token.id, token);
+  const list = queries.slice(0, 4);
+  for (let index = 0; index < list.length; index += 1) {
+    if (dexIsCooling()) break;
+    try {
+      for (const token of await searchTokens(list[index])) map.set(token.id, token);
+    } catch {
+      if (dexIsCooling()) break;
+    }
+    if (index < list.length - 1 && !dexIsCooling()) {
+      await new Promise((resolve) => setTimeout(resolve, DEX_STAGGER_MS));
+    }
   }
   return [...map.values()];
 }
 
-export async function fillSocialsFromDex(tokens: TrackedToken[], limit = 80): Promise<TrackedToken[]> {
+export function socialFillQueue(tokens: TrackedToken[]): TrackedToken[] {
   const missingX = tokens.filter((token) => !hasXTrail(token));
   const missingTweet = tokens.filter(
     (token) =>
       hasXTrail(token) && !firstTweetId(token.twitterUrl, token.tweetUrl, token.websiteUrl, token.description),
   );
   const rank = (token: TrackedToken) => (token.volume5m ?? token.volume1h ?? 0) + (token.change1h ?? token.change5m ?? 0);
-  const need = [...missingX.sort((a, b) => rank(b) - rank(a)), ...missingTweet.sort((a, b) => rank(b) - rank(a))].slice(
-    0,
-    limit,
-  );
+  return [...missingX.sort((a, b) => rank(b) - rank(a)), ...missingTweet.sort((a, b) => rank(b) - rank(a))];
+}
+
+export async function fillSocialsFromDex(tokens: TrackedToken[], limit = 25, page = 0): Promise<TrackedToken[]> {
+  if (dexIsCooling()) return [];
+  const need = rotateSlice(socialFillQueue(tokens), page * limit, limit);
   if (need.length === 0) return [];
   const byChain = new Map<string, TrackedToken[]>();
   for (const token of need) {
@@ -604,6 +666,7 @@ export async function fillSocialsFromDex(tokens: TrackedToken[], limit = 80): Pr
   const found: TrackedToken[] = [];
   await Promise.all(
     [...byChain.entries()].map(async ([chainId, items]) => {
+      if (dexIsCooling()) return;
       const pairs = bestPairs(await fetchTokenPairs(chainId, items.map((item) => item.tokenAddress)));
       const index = new Map(
         pairs.map((pair) => [`${normalizeChain(pair.chainId)}:${pair.baseToken.address.toLowerCase()}`, pair]),
@@ -613,12 +676,7 @@ export async function fillSocialsFromDex(tokens: TrackedToken[], limit = 80): Pr
         if (!pair) continue;
         const hydrated = pairToToken(pair, item.source);
         if (!hasXTrail(hydrated)) continue;
-        found.push({
-          ...item,
-          ...hydrated,
-          id: item.id,
-          source: item.source,
-        });
+        found.push(mergeToken(item, { ...hydrated, id: item.id, source: item.source }));
       }
     }),
   );

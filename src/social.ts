@@ -94,6 +94,9 @@ export function pickRadarTokens(tokens: TrackedToken[], now = Date.now()): Track
     });
 }
 
+/** Plumber-class miss: tweet was on the Dex pair website, not a token-profile. Keep hunting this CA. */
+export const PLUMBER_CA = "G8dmGbWTEFeK8Xmj5YaukwNsAKXCDEQfm11d5987crmZ";
+
 export const X_HUNT_QUERIES = [
   "x.com/status",
   "twitter.com/status",
@@ -155,7 +158,7 @@ export function radarSearchQueries(tokens: TrackedToken[], extra: string[] = [])
   return out;
 }
 
-/** Four Dex searches every tick: one status-url hunt, one hot ticker, one CA still missing a tweet, one bait/meta. */
+/** Four Dex searches: one status-url hunt, one hot ticker, one CA still missing a tweet, one bait/meta. */
 export function radarQuerySlice(tokens: TrackedToken[], extra: string[] = [], tick = 0): string[] {
   const hunts = X_HUNT_QUERIES;
   const hot = hotRadarSymbols(tokens);

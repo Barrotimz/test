@@ -20,9 +20,9 @@ If you want sub-second tweet alerts into Telegram/Discord/bots:
 - **Trending** — GeckoTerminal trending pools, sorted by heat
 - **Hot / Warm** — cross-cut of every live bag: strongest reads, then coins that are only heating up
 - **Buys 2m** — coins with the most buys in the last two minutes. DexScreener only prints a rolling 5-minute buy count; the 10s quote tick samples it and estimates the 2-minute window. Highest buy count at the top.
-- **Fresh** — new pools and bonding coins (pump.fun, Bags, BNB / Four.meme, Robinhood, global Gecko). Filter by launchpad chip.
+- **Fresh** — new pools and bonding coins (pump.fun HTTP + live PumpPortal creates, Bags, BNB / Four.meme, Robinhood, global Gecko). Filter by launchpad chip.
 - **Cooling** — dumps and trap-shaped prints so you can skip late candles
-- **Twitter radar** — hunts tweet-driven rips: Dex pair + website `x.com/status` links, pump handles, live Dex searches for status URLs, and CAs that are already ripping before the tweet is attached. Status IDs rank above a bare handle.
+- **Twitter radar** — hunts tweet-driven rips: Dex pair + website `x.com/status` links (also pulled on the 10s quote tick), pump handles, live Dex searches for status URLs, and CAs that are already ripping before the tweet is attached. Status IDs rank above a bare handle. Hunts are staggered; a Dex 429 cools Dex only, it does not stop the board.
 - **Boosted** — tokens paying for visibility (attention, not quality)
 - **KOL watch** — local list of X handles with live `from:handle` search
 - **CA scanner** — paste a tweet, extract tickers / handles / Solana + EVM addresses, look them up
@@ -54,7 +54,9 @@ npm test
 npm run build
 ```
 
-The board analyzes each live coin once per update, skips no-op merges, and only paints the top 60 cards on a tab so the UI stays responsive while the sniffer keeps running. Market cap, price, and 1h change on those visible cards (plus the open coin and watchlist) refresh every 10 seconds from DexScreener pair quotes — not a full rescan.
+The board analyzes each live coin once per update, skips no-op merges, and only paints the top 60 cards on a tab so the UI stays responsive while the sniffer keeps running. Market cap, price, and 1h change on those visible cards (plus the open coin and watchlist) refresh every 10 seconds from DexScreener pair quotes — and that same quote tick now attaches `x.com/status` links parked on Dex **websites** (the Plumber miss). Cards always paint from the merged live bag so a later Gecko reprint cannot wipe twitter or live viewers.
+
+Dex hunts stay on a 4-query slice every poll, but they run **one after another** (~220ms apart) and pair-hydrate / boosts wait until those searches finish. Extra CA-search bursts were dropped because the quote tick plus `/tokens/v1` hydrate already cover known mints. A Dex **429** pauses further Dex calls (status bar: `Dex cooling Ns`) instead of punching a hole in the radar; pump.fun, Bags, and Gecko keep running. New pump.fun creates also arrive over [PumpPortal](https://pumpportal.fun/) WebSocket so Fresh is not stuck on the 6.5s HTTP poll.
 
 Dev mode proxies DexScreener, GeckoTerminal, RugCheck, GoPlus, and tweet-embed metrics through Vite to avoid browser CORS issues.
 

@@ -7,6 +7,7 @@ import {
   pickTwitterUrl,
   radarQuerySlice,
   radarSearchQueries,
+  PLUMBER_CA,
 } from "./social";
 import type { TrackedToken } from "./types";
 
@@ -73,5 +74,14 @@ describe("twitter radar trail", () => {
     expect(slice.length).toBeLessThanOrEqual(4);
     expect(slice.some((query) => query.includes("status"))).toBe(true);
     expect(slice).toEqual(expect.arrayContaining([plumber.symbol, plumber.tokenAddress]));
+  });
+
+  it("keeps the Plumber CA in the bait/meta slot when passed as extra", () => {
+    const slices = [0, 1, 2, 3, 4, 5, 6, 7].map((tick) =>
+      radarQuerySlice([token({ symbol: "AAA", tokenAddress: "mintAAA111111111111111111111111111111" })], [PLUMBER_CA], tick),
+    );
+    expect(slices.some((slice) => slice.includes(PLUMBER_CA))).toBe(true);
+    expect(slices.every((slice) => slice.length <= 4)).toBe(true);
+    expect(slices.some((slice) => slice.some((query) => query.includes("status")))).toBe(true);
   });
 });

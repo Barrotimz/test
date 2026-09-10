@@ -18,10 +18,12 @@ import {
   searchTokens,
   selectQuoteTargets,
   viewerPatchFromLive,
+  dexIsCooling,
+  dexCooldownLeft,
 } from "./api";
 import { CHAINS, GECKO_NETWORKS, chainLabel, normalizeChain } from "./chains";
 import { LAUNCHPADS } from "./launchpads";
-import { eventsForNew, mergeLists } from "./merge";
+import { eventsForNew, mergeLists, overlayLive } from "./merge";
 import {
   enrichTokenSocial,
   fetchTweetAttractions,
@@ -64,7 +66,8 @@ import {
 import { detectTodayMetas, metaForToken, metaSearchQueries, pickMetaCoins, type TodayMeta } from "./meta";
 import { pulseLabel, pulseStage, tapeQuality, twitterAgeChip } from "./read";
 import { pickBuyTape, patchBuys2m, type BuySample } from "./buys";
-import { pickRadarTokens, radarQuerySlice, hasXTrail, isTapeOpportunity } from "./social";
+import { pickRadarTokens, radarQuerySlice, hasXTrail, isTapeOpportunity, PLUMBER_CA } from "./social";
+import { listenPumpCreates } from "./pumpStream";
 import {
   brainInsights,
   emptyBrain,
@@ -121,11 +124,11 @@ const HEAT_COPY: Partial<Record<TabId, { title: string; body: string }>> = {
   },
   launch: {
     title: "Fresh",
-    body: "New pools and bonding coins, hottest first.",
+    body: "New pools and bonding coins, hottest first. pump.fun creates also stream in live (PumpPortal) so this tab is not stuck on the 6.5s HTTP poll.",
   },
   radar: {
     title: "Twitter radar",
-    body: "Wide net for tweet-driven rips: Dex pair + website status links, pump handles, live x.com/status hunts, and CAs that are already ripping before the tweet is attached. Bundled-look coins get a warning from clone-sized holder bags.",
+    body: "Wide net for tweet-driven rips: Dex pair + website status links on the 10s quote tick, pump handles, live x.com/status hunts, and CAs that are already ripping before the tweet is attached. Hunts are staggered so Dex 429s do not punch a hole in coverage. Bundled-look coins get a warning from clone-sized holder bags.",
   },
   cooling: {
     title: "Cooling",
@@ -177,6 +180,8 @@ export default function App() {
   const [showFilters, setShowFilters] = useState(false);
   const [metaFilter, setMetaFilter] = useState<string>("all");
   const [brain, setBrain] = useState<RunnerBrain>(() => loadJson(LEARN_KEY, emptyBrain()));
+  const [dexHold, setDexHold] = useState(0);
+  const [pumpLive, setPumpLive] = useState(false);
 
   const knownIds = useRef(new Set<string>());
   const cycle = useRef(0);
@@ -194,6 +199,7 @@ export default function App() {
   const rugBusyRef = useRef(new Set<string>());
   const visibleIdsRef = useRef<string[]>([]);
   const buySamplesRef = useRef(new Map<string, BuySample[]>());
+  const hydratePage = useRef(0);
 
   const pendingLearn = useRef<TrackedToken[]>([]);
 
@@ -312,28 +318,52 @@ export default function App() {
     try {
       const jobs: Promise<void>[] = [];
       const bag = uniqueTokens(Object.values(bagsRef.current).flat());
-      const querySlice = radarQuerySlice(
-        bag,
-        metaSearchQueries(detectTodayMetas(bag, brainRef.current.lessons)),
-        tick,
-      );
-      jobs.push(
-        searchMany(querySlice.length ? querySlice : ["Plumber"])
-          .then((rows) => {
-            ingest(rows, setRadar);
-            ingest(rows, setTrending);
-            ingest(rows, setLaunching);
-          })
-          .catch(() => undefined),
-      );
-      if (tick === 0 || tick % 8 === 0) {
+      const cooling = dexIsCooling();
+      setDexHold(dexCooldownLeft());
+      if (!cooling) {
         jobs.push(
-          lookupAddresses(["G8dmGbWTEFeK8Xmj5YaukwNsAKXCDEQfm11d5987crmZ"])
-            .then((rows) => {
-              ingest(rows, setRadar);
-              ingest(rows, setTrending);
-            })
-            .catch(() => undefined),
+          (async () => {
+            const querySlice = radarQuerySlice(
+              bag,
+              [...metaSearchQueries(detectTodayMetas(bag, brainRef.current.lessons)), PLUMBER_CA],
+              tick,
+            );
+            try {
+              ingest(await searchMany(querySlice.length ? querySlice : ["x.com/status"]), setRadar);
+            } catch {
+              // Dex 429 / cooling — pump and gecko jobs still run
+            }
+            if (dexIsCooling()) return;
+            try {
+              if (tick % 4 === 1) {
+                ingest(await fillSocialsFromDex(bag, 25, hydratePage.current++), setRadar);
+                return;
+              }
+              if (tick % 4 !== 3) return;
+              const [latestBoosts, topBoosts, profiles] = await Promise.all([
+                fetchBoosts("latest"),
+                fetchBoosts("top"),
+                fetchProfiles(),
+              ]);
+              const socialish = [...latestBoosts, ...profiles].filter((item) => {
+                const links = item.links ?? [];
+                const blob = [item.description ?? "", ...links.map((link) => `${link.type ?? ""} ${link.url}`)].join(" ");
+                return (
+                  /twitter|x\.com/i.test(blob) ||
+                  Boolean(firstTweetId(item.description ?? "", ...links.map((link) => link.url))) ||
+                  /@[A-Za-z0-9_]{2,15}/.test(item.description ?? "")
+                );
+              });
+              const [radarTokens, boostTokens] = await Promise.all([
+                hydrateBoosts(socialish.slice(0, 48), "profile"),
+                hydrateBoosts(topBoosts.slice(0, 28), "boost"),
+              ]);
+              ingest(radarTokens, setRadar);
+              ingest(boostTokens, setBoosts);
+            } catch {
+              // Dex cooldown after hunts — do not take down pump/gecko
+            }
+          })(),
         );
       }
       jobs.push(fetchPumpNewest(64).then((rows) => ingest(rows, setLaunching)).catch(() => undefined));
@@ -368,62 +398,8 @@ export default function App() {
       if (tick % 5 === 0) {
         jobs.push(fetchPumpByMcap(24).then((rows) => ingest(rows, setTrending)).catch(() => undefined));
       }
-      if (tick % 2 === 0) {
-        const hunts = uniqueTokens(bag)
-          .filter((token) => !firstTweetId(token.twitterUrl, token.tweetUrl, token.websiteUrl, token.description))
-          .sort((a, b) => (b.volume5m ?? b.volume1h ?? 0) - (a.volume5m ?? a.volume1h ?? 0))
-          .slice(0, 6)
-          .map((token) => token.tokenAddress);
-        if (hunts.length) {
-          jobs.push(
-            lookupAddresses(hunts)
-              .then((rows) => {
-                ingest(rows, setRadar);
-                ingest(rows, setTrending);
-              })
-              .catch(() => undefined),
-          );
-        }
-      }
-      if (tick % 2 === 0) {
-        jobs.push(
-          fillSocialsFromDex(bag, 80)
-            .then((rows) => {
-              ingest(rows, setRadar);
-              ingest(rows, setLaunching);
-              ingest(rows, setTrending);
-            })
-            .catch(() => undefined),
-        );
-      }
       if (tick % 4 === 2 && net) {
         jobs.push(fetchGeckoPools(net, "new_pools").then((rows) => ingest(rows, setLaunching)));
-      }
-      if (tick % 2 === 1) {
-        jobs.push(
-          (async () => {
-            const [latestBoosts, topBoosts, profiles] = await Promise.all([
-              fetchBoosts("latest"),
-              fetchBoosts("top"),
-              fetchProfiles(),
-            ]);
-            const socialish = [...latestBoosts, ...profiles].filter((item) => {
-              const links = item.links ?? [];
-              const blob = [item.description ?? "", ...links.map((link) => `${link.type ?? ""} ${link.url}`)].join(" ");
-              return (
-                /twitter|x\.com/i.test(blob) ||
-                Boolean(firstTweetId(item.description ?? "", ...links.map((link) => link.url))) ||
-                /@[A-Za-z0-9_]{2,15}/.test(item.description ?? "")
-              );
-            });
-            const [radarTokens, boostTokens] = await Promise.all([
-              hydrateBoosts(socialish.slice(0, 48), "profile"),
-              hydrateBoosts(topBoosts.slice(0, 28), "boost"),
-            ]);
-            ingest(radarTokens, setRadar);
-            ingest(boostTokens, setBoosts);
-          })(),
-        );
       }
       await Promise.allSettled(jobs);
       if (pendingLearn.current.length) {
@@ -445,6 +421,7 @@ export default function App() {
         }
       }
       setUpdatedAt(Date.now());
+      setDexHold(dexCooldownLeft());
       setStatus("ok");
     } catch (err) {
       setStatus(knownIds.current.size ? "ok" : "err");
@@ -465,6 +442,10 @@ export default function App() {
       alive = false;
     };
   }, [refresh]);
+
+  useEffect(() => {
+    return listenPumpCreates((token) => ingest([token], setLaunching), setPumpLive);
+  }, [ingest]);
 
   useEffect(() => {
     let alive = true;
@@ -566,8 +547,8 @@ export default function App() {
 
   const watchedIds = useMemo(() => new Set(watch.map((item) => item.id)), [watch]);
   const allLive = useMemo(
-    () => uniqueTokens([...launching, ...radar, ...boosts, ...trending]),
-    [launching, radar, boosts, trending],
+    () => uniqueTokens([...launching, ...radar, ...boosts, ...trending, ...watch]),
+    [launching, radar, boosts, trending, watch],
   );
   const analyses = useMemo(() => indexAnalyses(allLive, brain, rugs), [allLive, brain, rugs]);
   const heatLists = useMemo(() => listsByHeat(allLive, analyses), [allLive, analyses]);
@@ -617,7 +598,7 @@ export default function App() {
       cooling: coolingList,
       learn: learnList,
     });
-    return picked.filter((token) => {
+    return overlayLive(picked, allLive).filter((token) => {
       if (enabledChains.length > 0 && enabledChains.length !== CHAINS.length) {
         if (!enabledChains.includes(normalizeChain(token.chainId))) return false;
       }
@@ -649,6 +630,7 @@ export default function App() {
     warmList,
     coolingList,
     learnList,
+    allLive,
     enabledChains,
     ageFilter,
     socialFilter,
@@ -786,6 +768,8 @@ export default function App() {
         <b>{allLive.length}</b> live
         <span>{updatedAt ? `scan ${ageLabel(updatedAt)} ago` : "starting…"}</span>
         <span>{quotesAt ? `mcap live · ${ageLabel(quotesAt)} ago` : "mcap live · on"}</span>
+        <span>{pumpLive ? "pump stream on" : "pump.fun HTTP"}</span>
+        {dexHold > 0 ? <span>Dex cooling {Math.ceil(dexHold / 1000)}s</span> : null}
         <button type="button" className="ghost" onClick={() => setShowFilters((on) => !on)}>
           {showFilters ? "Hide filters" : "Filters"}
         </button>

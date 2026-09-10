@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { geckoBaseMint, quotePatchChanged, quotePatchFromPair, selectQuoteTargets } from "./api";
+import {
+  geckoBaseMint,
+  noteDexStatus,
+  quotePatchChanged,
+  quotePatchFromPair,
+  resetDexCooldown,
+  dexIsCooling,
+  dexCooldownLeft,
+  selectQuoteTargets,
+} from "./api";
 import type { DexTokenPair, TrackedToken } from "./types";
 
 const token = (id: string, extra: Partial<TrackedToken> = {}): TrackedToken => ({
@@ -33,6 +42,45 @@ describe("quotePatchFromPair", () => {
     expect(patch.change1h).toBe(12.3);
     expect(patch.twitterUrl).toBeUndefined();
     expect(patch.tweetLikes).toBeUndefined();
+  });
+
+  it("attaches a tweet parked on Dex websites — the Plumber miss — unless a status is already known", () => {
+    const pair = {
+      chainId: "solana",
+      dexId: "pumpswap",
+      url: "https://dexscreener.com/solana/g8",
+      pairAddress: "p",
+      baseToken: { address: "G8dmGbWTEFeK8Xmj5YaukwNsAKXCDEQfm11d5987crmZ", name: "Plumber", symbol: "Plumber" },
+      quoteToken: { address: "so", name: "SOL", symbol: "SOL" },
+      marketCap: 50_000,
+      info: {
+        websites: [{ url: "https://x.com/polymarket/status/2097871648867172659" }],
+        socials: [{ url: "https://x.com/plumbercoin", type: "twitter" }],
+      },
+    } as DexTokenPair;
+    const attached = quotePatchFromPair(pair, token("g8"));
+    expect(attached.tweetUrl).toContain("2097871648867172659");
+    expect(attached.twitterUrl).toContain("2097871648867172659");
+    const already = quotePatchFromPair(
+      pair,
+      token("g8", { twitterUrl: "https://x.com/other/status/1", tweetUrl: "https://x.com/other/status/1" }),
+    );
+    expect(already.tweetUrl).toBeUndefined();
+    expect(already.marketCap).toBe(50000);
+  });
+});
+
+describe("dex cooldown", () => {
+  it("backs off after a 429 and recovers on success", () => {
+    resetDexCooldown();
+    const now = 5_000_000;
+    expect(dexIsCooling(now)).toBe(false);
+    noteDexStatus(429, now);
+    expect(dexIsCooling(now + 100)).toBe(true);
+    expect(dexCooldownLeft(now + 100)).toBeGreaterThan(1000);
+    noteDexStatus(200, now + 60_000);
+    expect(dexIsCooling(now + 60_000)).toBe(false);
+    resetDexCooldown();
   });
 });
 

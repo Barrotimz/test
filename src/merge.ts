@@ -58,3 +58,27 @@ export function eventsForNew(incoming: TrackedToken[], known: Set<string>, at = 
       text: `${token.stage === "launching" ? "LAUNCH" : "NEW"} $${token.symbol} · ${token.chainId}`,
     }));
 }
+
+/** Walk a list in pages so Dex hydrates rotate instead of always hitting the same 80 hottest. */
+export function rotateSlice<T>(items: T[], offset: number, limit: number): T[] {
+  if (items.length === 0 || limit <= 0) return [];
+  const start = ((offset % items.length) + items.length) % items.length;
+  const count = Math.min(limit, items.length);
+  const out: T[] = [];
+  for (let i = 0; i < count; i += 1) out.push(items[(start + i) % items.length]);
+  return out;
+}
+
+/** Paint cards from the merged live bag so a Gecko reprint cannot hide twitter/viewers. */
+export function overlayLive(picked: TrackedToken[], live: TrackedToken[]): TrackedToken[] {
+  if (picked.length === 0 || live.length === 0) return picked;
+  const map = new Map(live.map((token) => [token.id, token]));
+  let changed = false;
+  const next = picked.map((token) => {
+    const fresh = map.get(token.id);
+    if (!fresh || fresh === token) return token;
+    changed = true;
+    return fresh;
+  });
+  return changed ? next : picked;
+}
