@@ -44,11 +44,11 @@ import {
   twitterHandle,
 } from "./format";
 import { DEFAULT_KOLS } from "./kols";
+import { analyzeToken, pickAnalyzedRunners } from "./analyze";
 import {
   brainInsights,
   emptyBrain,
   learnFromTokens,
-  pickPossibleRunners,
   scoreAgainstBrain,
   type RunnerBrain,
 } from "./learn";
@@ -633,8 +633,8 @@ export default function App() {
                 <p key={line}>{line}</p>
               ))}
               <p>
-                Cards below are <b>possible runners</b> — live launches that match what those
-                million-dollar rips did (reach, pad/chain, early age, buy flow). Not a guarantee.
+                Cards below are <b>possible runners</b> after a fuller read: momentum, X heat vs
+                volume, buy/sell quality, thin books, and paid boosts. Traps are filtered out.
               </p>
               {brain.lessons.slice(0, 6).map((lesson) => (
                 <div className="kol" key={lesson.id}>
@@ -728,7 +728,7 @@ export default function App() {
                   rugBusy={Boolean(rugBusy[token.id])}
                   rugError={rugError[token.id]}
                   onRugCheck={() => void runRugCheck(token)}
-                  call={scoreAgainstBrain(token, brain)}
+                  analysis={analyzeToken(token, brain, rugs[token.id])}
                 />
               ))}
             </div>
@@ -826,6 +826,7 @@ export default function App() {
                   {opened.bondingPct != null ? `${opened.bondingPct}%` : "—"}
                 </div>
               </div>
+              <AnalysisPanel analysis={analyzeToken(opened, brain, rugs[opened.id])} />
               <TweetPulse token={opened} />
               {opened.tweetText && <p className="desc">{opened.tweetText}</p>}
               <p className="sub">
@@ -989,7 +990,7 @@ function pickTokens(
   if (tab === "scanner") return bags.scanned;
   if (tab === "kols") return [];
   if (tab === "learn") {
-    return pickPossibleRunners([...bags.launch, ...bags.radar, ...bags.trending, ...bags.boosts], bags.brain);
+    return pickAnalyzedRunners([...bags.launch, ...bags.radar, ...bags.trending, ...bags.boosts], bags.brain);
   }
   if (tab === "watch") return bags.watch;
   if (tab === "boosts") return bags.boosts;
@@ -1040,6 +1041,31 @@ function TradeButtons({ token }: { token: TrackedToken }) {
 
 function xUrl(token: TrackedToken): string {
   return token.tweetUrl || token.twitterUrl || liveSearchUrl(tokenSearchQuery(token.symbol, token.tokenAddress));
+}
+
+function AnalysisPanel({
+  analysis,
+  compact = false,
+}: {
+  analysis: ReturnType<typeof analyzeToken>;
+  compact?: boolean;
+}) {
+  const notes = compact ? analysis.notes.slice(0, 2) : analysis.notes;
+  return (
+    <div className={`analysis ${analysis.verdict}`}>
+      <div className="analysis-head">
+        <b>{analysis.verdict} analysis</b>
+        <span>
+          {analysis.momentum} · {analysis.social} social · {analysis.flow} flow · {analysis.score}
+        </span>
+      </div>
+      {notes.map((note) => (
+        <div key={note.text} className={`analysis-note ${note.side}`}>
+          {note.side === "for" ? "+" : "−"} {note.text}
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function TweetPulse({ token }: { token: TrackedToken }) {
@@ -1111,7 +1137,7 @@ function TokenCard({
   rugBusy,
   rugError,
   onRugCheck,
-  call,
+  analysis,
 }: {
   token: TrackedToken;
   watched: boolean;
@@ -1121,8 +1147,9 @@ function TokenCard({
   rugBusy: boolean;
   rugError?: string;
   onRugCheck: () => void;
-  call: ReturnType<typeof scoreAgainstBrain>;
+  analysis: ReturnType<typeof analyzeToken>;
 }) {
+  const call = analysis.call;
   const [imgOk, setImgOk] = useState(true);
   const handle = twitterHandle(token.twitterUrl);
   const change = token.change1h ?? token.change24h;
@@ -1159,6 +1186,7 @@ function TokenCard({
         {rug && <span className={`badge ${rug.level}`}>{rug.level}</span>}
       </div>
       {token.description && <div className="desc">{token.description}</div>}
+      <AnalysisPanel analysis={analysis} compact />
       <TweetPulse token={token} />
       <div className="metrics">
         <div>

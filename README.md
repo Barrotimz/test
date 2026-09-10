@@ -31,6 +31,7 @@ If you want sub-second tweet alerts into Telegram/Discord/bots:
 - **Filters** — last hour, still bonding, has X, has likes; sort newest / hottest / most likes
 - **Padre** — Copy CA sits next to a Padre button that opens `https://trade.padre.gg/trade/{chain}/{contract}` for that exact coin (Solana, BNB, ETH, Base)
 - **Learned rips** — studies million-dollar runners (PONS on Robinhood, graduated pump coins) vs the pack: why they went so much higher (reach, venue, volume). The tab lists those lessons and **possible runners** scored from that memory. Heuristic only.
+- **Analysis** — each card gets a strong/mixed/weak/trap read: 5m vs 1h momentum, likes vs followers, buy/sell quality, wash-looking volume, thin liquidity, paid boosts with a dead tweet. Sidebar shows the full for/against list.
 - **Coin age** — pair/pool created-at on every card (`just launched`, `12m old`, `5h old`, `3d old`). Sort **Newest first** or **Hottest first**. These are already-trading coins, not unreleased launches.
 
 ## Run

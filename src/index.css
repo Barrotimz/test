@@ -410,6 +410,52 @@ img {
   color: var(--lime);
 }
 
+.analysis {
+  border-radius: 12px;
+  padding: 8px 10px;
+  font-size: 12px;
+  border: 1px solid var(--line);
+  background: #0c1c24;
+}
+
+.analysis.strong {
+  border-color: #2f6;
+}
+
+.analysis.mixed {
+  border-color: #1d4d63;
+}
+
+.analysis.weak,
+.analysis.trap {
+  border-color: #5a2a32;
+}
+
+.analysis-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+  text-transform: capitalize;
+}
+
+.analysis-head span {
+  color: var(--muted);
+}
+
+.analysis-note {
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.analysis-note.for {
+  color: var(--good);
+}
+
+.analysis-note.against {
+  color: #ff9aa4;
+}
+
 .tweet-pulse {
   background: #0c2430;
   border: 1px solid #1d4d63;
