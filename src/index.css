@@ -353,7 +353,7 @@ img {
 
 .metrics {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   font-family: "IBM Plex Mono", monospace;
   font-size: 12px;
@@ -458,10 +458,73 @@ img {
 
 .chip {
   background: var(--panel-2);
+  border: 1px solid var(--line);
   border-radius: 999px;
   padding: 4px 9px;
   font-size: 12px;
   font-family: "IBM Plex Mono", monospace;
+  color: var(--text);
+}
+
+.chip.on {
+  background: #1a3a28;
+  border-color: #2f6;
+  color: var(--lime);
+}
+
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 10px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.stats b {
+  color: var(--text);
+  margin-right: 4px;
+}
+
+.tape {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+  min-height: 32px;
+}
+
+.chain-chips {
+  margin-bottom: 14px;
+}
+
+.curve {
+  position: relative;
+  height: 18px;
+  border-radius: 999px;
+  background: #122028;
+  overflow: hidden;
+}
+
+.curve i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--cyan), var(--lime));
+}
+
+.curve span {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: #071018;
+}
+
+.card {
+  cursor: pointer;
 }
 
 .notice {

@@ -1,14 +1,14 @@
-import type { DexBoost, DexTokenPair, TrackedToken } from "./types";
+import { normalizeChain } from "./chains";
 import { tokenImage } from "./format";
+import type { DexBoost, DexTokenPair, TrackedToken } from "./types";
 
 const DEX = import.meta.env.DEV ? "/dex" : "https://api.dexscreener.com";
 const GECKO = import.meta.env.DEV ? "/gecko" : "https://api.geckoterminal.com";
+const PUMP = import.meta.env.DEV ? "/pump" : "https://frontend-api-v3.pump.fun";
 
 async function getJson<T>(url: string): Promise<T> {
   const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`${response.status} ${url}`);
-  }
+  if (!response.ok) throw new Error(`${response.status} ${url}`);
   return (await response.json()) as T;
 }
 
@@ -16,27 +16,43 @@ function pickLink(links: { type?: string | null; url: string }[] | undefined, ty
   return links?.find((link) => (link.type ?? "").toLowerCase() === type)?.url;
 }
 
-function pairToToken(pair: DexTokenPair, source: TrackedToken["source"]): TrackedToken {
+function txnSum(side?: { buys?: number; sells?: number }): number | undefined {
+  if (!side) return undefined;
+  return (side.buys ?? 0) + (side.sells ?? 0);
+}
+
+export function pairToToken(pair: DexTokenPair, source: TrackedToken["source"]): TrackedToken {
   const socials = pair.info?.socials ?? [];
+  const chainId = normalizeChain(pair.chainId);
   return {
-    id: `${pair.chainId}:${pair.baseToken.address}`,
-    chainId: pair.chainId,
+    id: `${chainId}:${pair.baseToken.address}`,
+    chainId,
     tokenAddress: pair.baseToken.address,
     name: pair.baseToken.name,
     symbol: pair.baseToken.symbol,
     imageUrl: pair.info?.imageUrl,
     priceUsd: pair.priceUsd ? Number(pair.priceUsd) : undefined,
     marketCap: pair.marketCap ?? pair.fdv,
+    fdv: pair.fdv,
+    volume5m: pair.volume?.m5,
+    volume1h: pair.volume?.h1,
     volume24h: pair.volume?.h24,
+    change5m: pair.priceChange?.m5,
     change1h: pair.priceChange?.h1,
     change24h: pair.priceChange?.h24,
     liquidity: pair.liquidity?.usd,
     boostAmount: pair.boosts?.active,
+    buys1h: pair.txns?.h1?.buys,
+    sells1h: pair.txns?.h1?.sells,
+    txns24h: txnSum(pair.txns?.h24),
+    dexId: pair.dexId,
     twitterUrl: pickLink(socials, "twitter"),
     telegramUrl: pickLink(socials, "telegram"),
     websiteUrl: pair.info?.websites?.[0]?.url,
     dexUrl: pair.url,
     pairCreatedAt: pair.pairCreatedAt,
+    stage: "live",
+    seenAt: Date.now(),
     source,
   };
 }
@@ -44,12 +60,10 @@ function pairToToken(pair: DexTokenPair, source: TrackedToken["source"]): Tracke
 function bestPairs(pairs: DexTokenPair[]): DexTokenPair[] {
   const byToken = new Map<string, DexTokenPair>();
   for (const pair of pairs) {
-    const key = `${pair.chainId}:${pair.baseToken.address.toLowerCase()}`;
+    const key = `${normalizeChain(pair.chainId)}:${pair.baseToken.address.toLowerCase()}`;
     const current = byToken.get(key);
     const liq = pair.liquidity?.usd ?? 0;
-    if (!current || liq > (current.liquidity?.usd ?? 0)) {
-      byToken.set(key, pair);
-    }
+    if (!current || liq > (current.liquidity?.usd ?? 0)) byToken.set(key, pair);
   }
   return [...byToken.values()];
 }
@@ -84,39 +98,34 @@ export async function searchTokens(query: string): Promise<TrackedToken[]> {
   return bestPairs(data.pairs ?? []).map((pair) => pairToToken(pair, "search"));
 }
 
-function mergeBoost(boost: DexBoost, pair?: DexTokenPair): TrackedToken {
-  const links = [
-    ...(boost.links ?? []),
-    ...(pair?.info?.socials ?? []),
-  ];
-  return {
-    id: `${boost.chainId}:${boost.tokenAddress}`,
-    chainId: boost.chainId,
-    tokenAddress: boost.tokenAddress,
-    name: pair?.baseToken.name ?? shortName(boost.tokenAddress),
-    symbol: pair?.baseToken.symbol ?? "???",
-    description: boost.description ?? undefined,
-    imageUrl: tokenImage(boost.chainId, boost.tokenAddress, pair?.info?.imageUrl ?? boost.icon ?? undefined),
-    priceUsd: pair?.priceUsd ? Number(pair.priceUsd) : undefined,
-    marketCap: pair?.marketCap ?? pair?.fdv,
-    volume24h: pair?.volume?.h24,
-    change1h: pair?.priceChange?.h1,
-    change24h: pair?.priceChange?.h24,
-    liquidity: pair?.liquidity?.usd,
-    boostAmount: boost.totalAmount ?? boost.amount ?? pair?.boosts?.active,
-    twitterUrl: pickLink(links, "twitter"),
-    telegramUrl: pickLink(links, "telegram"),
-    websiteUrl:
-      links.find((link) => !link.type || link.type === "website")?.url ??
-      pair?.info?.websites?.[0]?.url,
-    dexUrl: boost.url ?? pair?.url ?? `https://dexscreener.com/${boost.chainId}/${boost.tokenAddress}`,
-    pairCreatedAt: pair?.pairCreatedAt,
-    source: boost.amount != null ? "boost" : "profile",
-  };
-}
-
 function shortName(address: string): string {
   return address.slice(0, 6);
+}
+
+function mergeBoost(boost: DexBoost, pair?: DexTokenPair): TrackedToken {
+  const links = [...(boost.links ?? []), ...(pair?.info?.socials ?? [])];
+  const fromPair = pair ? pairToToken(pair, boost.amount != null ? "boost" : "profile") : undefined;
+  const chainId = normalizeChain(boost.chainId);
+  return {
+    ...fromPair,
+    id: `${chainId}:${boost.tokenAddress}`,
+    chainId,
+    tokenAddress: boost.tokenAddress,
+    name: fromPair?.name ?? shortName(boost.tokenAddress),
+    symbol: fromPair?.symbol ?? "???",
+    description: boost.description ?? fromPair?.description,
+    imageUrl: tokenImage(chainId, boost.tokenAddress, fromPair?.imageUrl ?? boost.icon ?? undefined),
+    boostAmount: boost.totalAmount ?? boost.amount ?? fromPair?.boostAmount,
+    twitterUrl: pickLink(links, "twitter") ?? fromPair?.twitterUrl,
+    telegramUrl: pickLink(links, "telegram") ?? fromPair?.telegramUrl,
+    websiteUrl:
+      links.find((link) => !link.type || link.type === "website")?.url ?? fromPair?.websiteUrl,
+    dexUrl: boost.url ?? fromPair?.dexUrl ?? `https://dexscreener.com/${chainId}/${boost.tokenAddress}`,
+    pairCreatedAt: fromPair?.pairCreatedAt,
+    stage: "live",
+    seenAt: Date.now(),
+    source: boost.amount != null ? "boost" : "profile",
+  };
 }
 
 export async function hydrateBoosts(boosts: DexBoost[], source: TrackedToken["source"]): Promise<TrackedToken[]> {
@@ -133,13 +142,13 @@ export async function hydrateBoosts(boosts: DexBoost[], source: TrackedToken["so
       const addresses = [...new Set(items.map((item) => item.tokenAddress))];
       const pairs = bestPairs(await fetchTokenPairs(chainId, addresses));
       for (const pair of pairs) {
-        pairIndex.set(`${pair.chainId}:${pair.baseToken.address.toLowerCase()}`, pair);
+        pairIndex.set(`${normalizeChain(pair.chainId)}:${pair.baseToken.address.toLowerCase()}`, pair);
       }
     }),
   );
 
   return boosts.map((boost) => {
-    const pair = pairIndex.get(`${boost.chainId}:${boost.tokenAddress.toLowerCase()}`);
+    const pair = pairIndex.get(`${normalizeChain(boost.chainId)}:${boost.tokenAddress.toLowerCase()}`);
     const token = mergeBoost(boost, pair);
     token.source = source;
     return token;
@@ -147,57 +156,147 @@ export async function hydrateBoosts(boosts: DexBoost[], source: TrackedToken["so
 }
 
 type GeckoPool = {
-  id: string;
   attributes: {
     name: string;
     address: string;
     base_token_price_usd?: string | null;
     fdv_usd?: string | null;
     market_cap_usd?: string | null;
-    volume_usd?: { h24?: string };
-    price_change_percentage?: { h1?: string; h24?: string };
+    volume_usd?: { m5?: string; h1?: string; h24?: string };
+    price_change_percentage?: { m5?: string; h1?: string; h24?: string };
     reserve_in_usd?: string;
     pool_created_at?: string;
+    transactions?: { h1?: { buys?: number; sells?: number }; h24?: { buys?: number; sells?: number } };
   };
   relationships?: {
     base_token?: { data?: { id: string } };
+    dex?: { data?: { id: string } };
   };
 };
 
+function geckoToToken(pool: GeckoPool, network: string, source: TrackedToken["source"]): TrackedToken {
+  const tokenId = pool.relationships?.base_token?.data?.id ?? "";
+  const tokenAddress = tokenId.includes("_") ? tokenId.slice(tokenId.indexOf("_") + 1) : pool.attributes.address;
+  const [name, symbol] = splitPoolName(pool.attributes.name);
+  const chainId = normalizeChain(network === "eth" ? "ethereum" : network);
+  const created = pool.attributes.pool_created_at ? Date.parse(pool.attributes.pool_created_at) : undefined;
+  const ageMs = created ? Date.now() - created : undefined;
+  return {
+    id: `${chainId}:${tokenAddress}`,
+    chainId,
+    tokenAddress,
+    name,
+    symbol,
+    imageUrl: tokenImage(chainId, tokenAddress),
+    priceUsd: num(pool.attributes.base_token_price_usd),
+    marketCap: num(pool.attributes.market_cap_usd) ?? num(pool.attributes.fdv_usd),
+    fdv: num(pool.attributes.fdv_usd),
+    volume5m: num(pool.attributes.volume_usd?.m5),
+    volume1h: num(pool.attributes.volume_usd?.h1),
+    volume24h: num(pool.attributes.volume_usd?.h24),
+    change5m: num(pool.attributes.price_change_percentage?.m5),
+    change1h: num(pool.attributes.price_change_percentage?.h1),
+    change24h: num(pool.attributes.price_change_percentage?.h24),
+    liquidity: num(pool.attributes.reserve_in_usd),
+    buys1h: pool.attributes.transactions?.h1?.buys,
+    sells1h: pool.attributes.transactions?.h1?.sells,
+    txns24h: txnSum(pool.attributes.transactions?.h24),
+    dexId: pool.relationships?.dex?.data?.id,
+    dexUrl: `https://dexscreener.com/${chainId}/${tokenAddress}`,
+    pairCreatedAt: created,
+    stage: ageMs != null && ageMs < 30 * 60_000 ? "launching" : "live",
+    seenAt: Date.now(),
+    source,
+  };
+}
+
+export async function fetchGeckoPools(network: string, kind: "new_pools" | "trending_pools"): Promise<TrackedToken[]> {
+  try {
+    const data = await getJson<{ data?: GeckoPool[] }>(`${GECKO}/api/v2/networks/${network}/${kind}?page=1`);
+    return (data.data ?? []).map((pool) => geckoToToken(pool, network, kind === "new_pools" ? "newpool" : "trending"));
+  } catch {
+    return [];
+  }
+}
+
 export async function fetchTrending(network = "solana"): Promise<TrackedToken[]> {
-  const data = await getJson<{ data?: GeckoPool[] }>(
-    `${GECKO}/api/v2/networks/${network}/trending_pools?page=1`,
+  return fetchGeckoPools(network, "trending_pools");
+}
+
+type PumpCoin = {
+  mint: string;
+  name: string;
+  symbol: string;
+  description?: string;
+  image_uri?: string;
+  created_timestamp?: number;
+  complete?: boolean;
+  twitter?: string;
+  telegram?: string;
+  website?: string;
+  usd_market_cap?: number;
+  market_cap_usd?: number;
+  reply_count?: number;
+  is_currently_live?: boolean;
+  real_sol_reserves?: number;
+  username?: string;
+};
+
+export function bondingPct(realSolReserves?: number): number | undefined {
+  if (realSolReserves == null) return undefined;
+  return Math.min(100, Math.round((realSolReserves / 1e9 / 85) * 1000) / 10);
+}
+
+function pumpSocial(raw?: string, kind: "twitter" | "telegram" | "web" = "web"): string | undefined {
+  if (!raw) return undefined;
+  if (/^https?:\/\//i.test(raw)) return raw;
+  if (kind === "twitter") return `https://x.com/${raw.replace(/^@/, "")}`;
+  if (kind === "telegram") return `https://t.me/${raw.replace(/^@/, "")}`;
+  return raw;
+}
+
+function pumpToToken(coin: PumpCoin): TrackedToken {
+  const twitter = pumpSocial(coin.twitter, "twitter");
+  return {
+    id: `solana:${coin.mint}`,
+    chainId: "solana",
+    tokenAddress: coin.mint,
+    name: coin.name,
+    symbol: coin.symbol.replace(/^\$/, ""),
+    description: coin.description || undefined,
+    imageUrl: coin.image_uri,
+    marketCap: coin.usd_market_cap ?? coin.market_cap_usd,
+    twitterUrl: twitter,
+    telegramUrl: pumpSocial(coin.telegram, "telegram"),
+    websiteUrl: pumpSocial(coin.website),
+    dexUrl: `https://pump.fun/${coin.mint}`,
+    pairCreatedAt: coin.created_timestamp,
+    replies: coin.reply_count,
+    bondingPct: coin.complete ? 100 : bondingPct(coin.real_sol_reserves),
+    livestream: coin.is_currently_live,
+    stage: coin.complete ? "graduated" : "launching",
+    seenAt: Date.now(),
+    source: "launch",
+  };
+}
+
+export async function fetchPumpNewest(limit = 40): Promise<TrackedToken[]> {
+  const coins = await getJson<PumpCoin[]>(
+    `${PUMP}/coins?offset=0&limit=${limit}&sort=created_timestamp&order=DESC&includeNsfw=false`,
   );
-  const pools = data.data ?? [];
-  return pools.map((pool) => {
-    const tokenId = pool.relationships?.base_token?.data?.id ?? "";
-    const tokenAddress = tokenId.includes("_") ? tokenId.slice(tokenId.indexOf("_") + 1) : pool.attributes.address;
-    const [name, symbol] = splitPoolName(pool.attributes.name);
-    return {
-      id: `${network}:${tokenAddress}`,
-      chainId: network,
-      tokenAddress,
-      name,
-      symbol,
-      imageUrl: tokenImage(network, tokenAddress),
-      priceUsd: num(pool.attributes.base_token_price_usd),
-      marketCap: num(pool.attributes.market_cap_usd) ?? num(pool.attributes.fdv_usd),
-      volume24h: num(pool.attributes.volume_usd?.h24),
-      change1h: num(pool.attributes.price_change_percentage?.h1),
-      change24h: num(pool.attributes.price_change_percentage?.h24),
-      liquidity: num(pool.attributes.reserve_in_usd),
-      dexUrl: `https://dexscreener.com/${network}/${tokenAddress}`,
-      pairCreatedAt: pool.attributes.pool_created_at
-        ? Date.parse(pool.attributes.pool_created_at)
-        : undefined,
-      source: "trending",
-    };
-  });
+  return coins.map(pumpToToken);
+}
+
+export async function fetchPumpHottest(limit = 24): Promise<TrackedToken[]> {
+  const coins = await getJson<PumpCoin[]>(
+    `${PUMP}/coins?offset=0&limit=${limit}&sort=last_trade_timestamp&order=DESC&includeNsfw=false`,
+  );
+  return coins.filter((coin) => !coin.complete).map(pumpToToken);
 }
 
 function splitPoolName(name: string): [string, string] {
   const base = name.split(" / ")[0]?.trim() || name;
-  return [base, base.replace(/\s+/g, "").slice(0, 10).toUpperCase()];
+  return [base, base.replace(/\s+/g, "").slice(0, 12).toUpperCase()];
 }
 
 function num(value?: string | null): number | undefined {

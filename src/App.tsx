@@ -1,12 +1,16 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   fetchBoosts,
+  fetchGeckoPools,
   fetchProfiles,
-  fetchTrending,
+  fetchPumpHottest,
+  fetchPumpNewest,
   hydrateBoosts,
   lookupAddresses,
   searchTokens,
 } from "./api";
+import { CHAINS, GECKO_NETWORKS, chainLabel, normalizeChain } from "./chains";
+import { eventsForNew, mergeLists } from "./merge";
 import { fetchTweetAttractions, scoreTokenHype, type TweetAttraction } from "./attraction";
 import { checkTokenRug, type RugReport } from "./rug";
 import { extractMentions } from "./extract";
@@ -15,6 +19,7 @@ import {
   coinAgeBucket,
   coinAgeLabel,
   compactCount,
+  compactPrice,
   compactUsd,
   liveSearchUrl,
   pct,
@@ -24,16 +29,17 @@ import {
   twitterHandle,
 } from "./format";
 import { DEFAULT_KOLS } from "./kols";
-import type { Kol, TabId, TrackedToken } from "./types";
+import type { FeedEvent, Kol, TabId, TrackedToken } from "./types";
 
 const WATCH_KEY = "xmeme-watchlist";
 const KOL_KEY = "xmeme-kols";
 const TABS: { id: TabId; label: string }[] = [
+  { id: "launch", label: "Launching" },
   { id: "radar", label: "Twitter radar" },
   { id: "boosts", label: "Boosted" },
   { id: "trending", label: "Trending" },
-  { id: "kols", label: "KOL watch" },
   { id: "scanner", label: "CA scanner" },
+  { id: "kols", label: "KOL watch" },
   { id: "watch", label: "Watchlist" },
 ];
 
@@ -47,11 +53,17 @@ function loadJson<T>(key: string, fallback: T): T {
 }
 
 export default function App() {
-  const [tab, setTab] = useState<TabId>("radar");
+  const [tab, setTab] = useState<TabId>("launch");
   const [query, setQuery] = useState("");
+  const [launching, setLaunching] = useState<TrackedToken[]>([]);
   const [radar, setRadar] = useState<TrackedToken[]>([]);
   const [boosts, setBoosts] = useState<TrackedToken[]>([]);
   const [trending, setTrending] = useState<TrackedToken[]>([]);
+  const [events, setEvents] = useState<FeedEvent[]>([]);
+  const [enabledChains, setEnabledChains] = useState<string[]>(() => CHAINS.map((chain) => chain.id));
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [seen, setSeen] = useState(0);
+  const geckoCursor = useRef(0);
   const [searchHits, setSearchHits] = useState<TrackedToken[]>([]);
   const [watch, setWatch] = useState<TrackedToken[]>(() => loadJson(WATCH_KEY, []));
   const [kols, setKols] = useState<Kol[]>(() => loadJson(KOL_KEY, DEFAULT_KOLS));
@@ -62,7 +74,6 @@ export default function App() {
   const [status, setStatus] = useState<"ok" | "busy" | "err">("busy");
   const [updatedAt, setUpdatedAt] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [chain, setChain] = useState("solana");
   const [rugs, setRugs] = useState<Record<string, RugReport>>({});
   const [rugBusy, setRugBusy] = useState<Record<string, boolean>>({});
   const [rugError, setRugError] = useState<Record<string, string>>({});
@@ -70,38 +81,89 @@ export default function App() {
   const [tweetBusy, setTweetBusy] = useState(false);
   const [sortMode, setSortMode] = useState<"newest" | "hype">("newest");
 
+  const knownIds = useRef(new Set<string>());
+  const cycle = useRef(0);
+
+  const ingest = useCallback((incoming: TrackedToken[], setter: (fn: (prev: TrackedToken[]) => TrackedToken[]) => void) => {
+    if (incoming.length === 0) return;
+    const fresh = eventsForNew(incoming, knownIds.current);
+    for (const token of incoming) knownIds.current.add(token.id);
+    if (fresh.length) {
+      setEvents((prev) => [...fresh, ...prev].slice(0, 24));
+      setSeen((count) => count + fresh.length);
+    }
+    setter((prev) => mergeLists(prev, incoming));
+  }, []);
+
   const refresh = useCallback(async () => {
-    setStatus("busy");
     setError(null);
+    if (knownIds.current.size === 0) setStatus("busy");
+    const tick = cycle.current++;
+    const start = geckoCursor.current % GECKO_NETWORKS.length;
+    const nets = [GECKO_NETWORKS[start], GECKO_NETWORKS[(start + 1) % GECKO_NETWORKS.length]].filter(Boolean);
+    geckoCursor.current = start + 2;
     try {
-      const [latestBoosts, topBoosts, profiles, trend] = await Promise.all([
-        fetchBoosts("latest"),
-        fetchBoosts("top"),
-        fetchProfiles(),
-        fetchTrending(chain),
-      ]);
-      const withTwitter = [...latestBoosts, ...profiles].filter((item) =>
-        item.links?.some((link) => (link.type ?? "").toLowerCase() === "twitter"),
-      );
-      const [radarTokens, boostTokens] = await Promise.all([
-        hydrateBoosts(withTwitter.slice(0, 40), "profile"),
-        hydrateBoosts(topBoosts.slice(0, 40), "boost"),
-      ]);
-      setRadar(dedupe(radarTokens));
-      setBoosts(dedupe(boostTokens));
-      setTrending(trend);
+      const jobs: Promise<void>[] = [
+        fetchPumpNewest(36)
+          .then((rows) => ingest(rows, setLaunching))
+          .catch(() => undefined),
+        Promise.all(nets.map((net) => fetchGeckoPools(net, "new_pools"))).then((groups) => {
+          const rows = groups.flat();
+          ingest(rows, setLaunching);
+          ingest(rows, setTrending);
+        }),
+      ];
+      if (tick % 2 === 0) {
+        jobs.push(fetchPumpHottest(20).then((rows) => ingest(rows, setLaunching)).catch(() => undefined));
+      }
+      if (tick % 3 === 1) {
+        jobs.push(
+          Promise.all(nets.map((net) => fetchGeckoPools(net, "trending_pools"))).then((groups) =>
+            ingest(groups.flat(), setTrending),
+          ),
+        );
+      }
+      if (tick % 3 === 0) {
+        jobs.push(
+          (async () => {
+            const [latestBoosts, topBoosts, profiles] = await Promise.all([
+              fetchBoosts("latest"),
+              fetchBoosts("top"),
+              fetchProfiles(),
+            ]);
+            const withTwitter = [...latestBoosts, ...profiles].filter((item) =>
+              item.links?.some((link) => (link.type ?? "").toLowerCase() === "twitter"),
+            );
+            const [radarTokens, boostTokens] = await Promise.all([
+              hydrateBoosts(withTwitter.slice(0, 36), "profile"),
+              hydrateBoosts(topBoosts.slice(0, 36), "boost"),
+            ]);
+            ingest(radarTokens, setRadar);
+            ingest(boostTokens, setBoosts);
+          })(),
+        );
+      }
+      await Promise.allSettled(jobs);
       setUpdatedAt(Date.now());
       setStatus("ok");
     } catch (err) {
-      setStatus("err");
-      setError(err instanceof Error ? err.message : "Failed to load market data");
+      setStatus(knownIds.current.size ? "ok" : "err");
+      setError(err instanceof Error ? err.message : "Scan hiccup");
     }
-  }, [chain]);
+  }, [ingest]);
 
   useEffect(() => {
-    void refresh();
-    const timer = window.setInterval(() => void refresh(), 45_000);
-    return () => window.clearInterval(timer);
+    let alive = true;
+    const loop = async () => {
+      while (alive) {
+        await refresh();
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+      }
+    };
+    void loop();
+    return () => {
+      alive = false;
+    };
   }, [refresh]);
 
   useEffect(() => {
@@ -190,6 +252,7 @@ export default function App() {
   const watchedIds = new Set(watch.map((item) => item.id));
   const visible = sortTokens(
     pickTokens(tab, {
+      launch: launching,
       radar,
       boosts,
       trending,
@@ -197,9 +260,13 @@ export default function App() {
       searchHits,
       scanned,
       query,
+    }).filter((token) => {
+      if (enabledChains.length === 0 || enabledChains.length === CHAINS.length) return true;
+      return enabledChains.includes(normalizeChain(token.chainId));
     }),
     sortMode,
   );
+  const opened = visible.find((token) => token.id === openId) ?? launching.find((token) => token.id === openId);
 
   return (
     <div className="app">
@@ -208,7 +275,7 @@ export default function App() {
           <div className="logo">XR</div>
           <div>
             <h1>XMeme Radar</h1>
-            <p>Live listed coins only — new launches and already-trading memes. Age is on every card.</p>
+            <p>No-gap sniffer: pump.fun launches, new pools, and socials across BNB, Robinhood, Solana, ETH, Base, and more.</p>
           </div>
         </div>
         <form className="search-wrap" onSubmit={onSearch}>
@@ -235,12 +302,6 @@ export default function App() {
                 Clear search
               </button>
             )}
-            <select value={chain} onChange={(event) => setChain(event.target.value)}>
-              <option value="solana">Solana</option>
-              <option value="base">Base</option>
-              <option value="bsc">BSC</option>
-              <option value="ethereum">Ethereum</option>
-            </select>
             <select value={sortMode} onChange={(event) => setSortMode(event.target.value as "newest" | "hype")}>
               <option value="newest">Newest first</option>
               <option value="hype">Hottest first</option>
@@ -252,18 +313,63 @@ export default function App() {
       <div className="banner">
         <h2>What this tracks</h2>
         <p>
-          These are coins that already trade — not unreleased / “about to launch” tokens. Radar is
-          new socials, Boosted is paid attention, Trending can include older memes that are moving
-          now. Each card shows <b>pair age</b> (when the first pool went live). Fresh = under 1h,
-          New = under 24h.
+          Launching watches bonding-curve coins (pump.fun) and brand-new pools on every chain we
+          can reach, including BNB and Robinhood. The scanner re-checks every 5 seconds and never
+          clears the board. Cards show age, price, liquidity, txs, replies, and tweet likes when
+          you paste a status link.
         </p>
+      </div>
+
+      <div className="stats">
+        <span className={`status ${status}`} />
+        <b>{enabledChains.length}</b> chains
+        <b>{seen}</b> new this session
+        <b>{launching.length + radar.length + boosts.length + trending.length}</b> in memory
+        <span>{updatedAt ? `scan ${ageLabel(updatedAt)} ago` : "starting…"}</span>
+      </div>
+      <div className="tape">
+        {events.length === 0 ? <span className="sub">Waiting for the next launch…</span> : null}
+        {events.slice(0, 8).map((event) => (
+          <span key={event.id} className="chip">
+            {event.text}
+          </span>
+        ))}
+      </div>
+      <div className="chips chain-chips">
+        <button
+          type="button"
+          className="chip"
+          onClick={() =>
+            setEnabledChains((current) =>
+              current.length === CHAINS.length ? [] : CHAINS.map((chain) => chain.id),
+            )
+          }
+        >
+          {enabledChains.length === CHAINS.length ? "All chains on" : "Select all chains"}
+        </button>
+        {CHAINS.map((chain) => (
+          <button
+            key={chain.id}
+            type="button"
+            className={`chip ${enabledChains.includes(chain.id) ? "on" : ""}`}
+            onClick={() =>
+              setEnabledChains((current) =>
+                current.includes(chain.id)
+                  ? current.filter((id) => id !== chain.id)
+                  : [...current, chain.id],
+              )
+            }
+          >
+            {chain.label}
+          </button>
+        ))}
       </div>
 
       <nav className="tabs">
         {TABS.map((item) => (
           <button key={item.id} className={tab === item.id ? "active" : ""} onClick={() => setTab(item.id)}>
             {item.label}
-            {item.id === "watch" ? ` (${watch.length})` : ""}
+            {item.id === "watch" ? ` (${watch.length})` : item.id === "launch" ? ` (${launching.length})` : ""}
           </button>
         ))}
       </nav>
@@ -378,6 +484,7 @@ export default function App() {
                   token={token}
                   watched={watchedIds.has(token.id)}
                   onWatch={() => toggleWatch(token)}
+                  onOpen={() => setOpenId(token.id)}
                   rug={rugs[token.id]}
                   rugBusy={Boolean(rugBusy[token.id])}
                   rugError={rugError[token.id]}
@@ -389,6 +496,52 @@ export default function App() {
         </section>
 
         <aside className="side">
+          {opened && (
+            <>
+              <h2>${opened.symbol} details</h2>
+              <p>
+                {opened.name} · {chainLabel(opened.chainId)} · {opened.stage ?? "live"} ·{" "}
+                {coinAgeLabel(opened.pairCreatedAt)}
+              </p>
+              <div className="metrics">
+                <div>
+                  <span>Price</span>
+                  {compactPrice(opened.priceUsd)}
+                </div>
+                <div>
+                  <span>Liq</span>
+                  {compactUsd(opened.liquidity)}
+                </div>
+                <div>
+                  <span>5m vol</span>
+                  {compactUsd(opened.volume5m)}
+                </div>
+                <div>
+                  <span>1h txs</span>
+                  {compactCount((opened.buys1h ?? 0) + (opened.sells1h ?? 0))}
+                </div>
+                <div>
+                  <span>Replies</span>
+                  {compactCount(opened.replies)}
+                </div>
+                <div>
+                  <span>Curve</span>
+                  {opened.bondingPct != null ? `${opened.bondingPct}%` : "—"}
+                </div>
+              </div>
+              <div className="actions">
+                <button
+                  className="mini"
+                  onClick={() => void navigator.clipboard.writeText(opened.tokenAddress)}
+                >
+                  Copy CA
+                </button>
+                <button className="mini" onClick={() => setOpenId(null)}>
+                  Close
+                </button>
+              </div>
+            </>
+          )}
           <h2>Live X shortcuts</h2>
           <p>Open Twitter/X search in a new tab. These queries catch ticker and contract chatter.</p>
           <div className="actions">
@@ -455,8 +608,8 @@ export default function App() {
       </div>
 
       <p className="notice">
-        Public DexScreener, GeckoTerminal, RugCheck, GoPlus, and tweet-embed metrics. Attraction
-        and “safe” badges are heuristics, not a guarantee. Not financial advice.
+        Continuous public scans of pump.fun, DexScreener, GeckoTerminal, RugCheck, and GoPlus.
+        Tweet likes need a pasted status URL. Heuristics only. Not financial advice.
       </p>
     </div>
   );
@@ -465,6 +618,7 @@ export default function App() {
 function pickTokens(
   tab: TabId,
   bags: {
+    launch: TrackedToken[];
     radar: TrackedToken[];
     boosts: TrackedToken[];
     trending: TrackedToken[];
@@ -479,6 +633,7 @@ function pickTokens(
   if (tab === "watch") return bags.watch;
   if (tab === "boosts") return bags.boosts;
   if (tab === "trending") return bags.trending;
+  if (tab === "launch") return bags.launch;
   if (bags.query.trim() && bags.searchHits.length) return bags.searchHits;
   return bags.radar;
 }
@@ -501,6 +656,7 @@ function TokenCard({
   token,
   watched,
   onWatch,
+  onOpen,
   rug,
   rugBusy,
   rugError,
@@ -509,6 +665,7 @@ function TokenCard({
   token: TrackedToken;
   watched: boolean;
   onWatch: () => void;
+  onOpen: () => void;
   rug?: RugReport;
   rugBusy: boolean;
   rugError?: string;
@@ -520,7 +677,7 @@ function TokenCard({
   const hype = scoreTokenHype(token);
   const ageBucket = coinAgeBucket(token.pairCreatedAt);
   return (
-    <article className="card">
+    <article className="card" onClick={onOpen}>
       <div className="card-head">
         {imgOk && token.imageUrl ? (
           <img className="avatar" src={token.imageUrl} alt="" onError={() => setImgOk(false)} />
@@ -530,7 +687,9 @@ function TokenCard({
         <div className="grow">
           <div className="sym">${token.symbol}</div>
           <div className="sub">
-            {token.name} · {token.chainId} · {shortAddress(token.tokenAddress)}
+            {token.name} · {chainLabel(token.chainId)} · {shortAddress(token.tokenAddress)}
+            {token.livestream ? " · LIVE" : ""}
+            {token.stage === "launching" ? " · bonding" : ""}
           </div>
         </div>
         <span className={`badge ${ageBucket}`} title="Age of the main trading pair">
@@ -544,12 +703,16 @@ function TokenCard({
       {token.description && <div className="desc">{token.description}</div>}
       <div className="metrics">
         <div>
+          <span>Price</span>
+          {compactPrice(token.priceUsd)}
+        </div>
+        <div>
           <span>Mcap</span>
           {compactUsd(token.marketCap)}
         </div>
         <div>
-          <span>Vol 24h</span>
-          {compactUsd(token.volume24h)}
+          <span>Liq</span>
+          {compactUsd(token.liquidity)}
         </div>
         <div>
           <span>1h</span>
@@ -559,7 +722,17 @@ function TokenCard({
           <span>Age</span>
           <b className={ageBucket}>{coinAgeLabel(token.pairCreatedAt)}</b>
         </div>
+        <div>
+          <span>Replies</span>
+          {compactCount(token.replies)}
+        </div>
       </div>
+      {token.bondingPct != null && token.stage === "launching" && (
+        <div className="curve">
+          <i style={{ width: `${token.bondingPct}%` }} />
+          <span>bonding {token.bondingPct}%</span>
+        </div>
+      )}
       {rug && (
         <ul className="flags">
           {rug.flags.slice(0, 6).map((flag) => (
@@ -571,7 +744,7 @@ function TokenCard({
         </ul>
       )}
       {rugError && <p className="empty">{rugError}</p>}
-      <div className="actions">
+      <div className="actions" onClick={(event) => event.stopPropagation()}>
         <a className="mini x" href={xUrl(token)} target="_blank" rel="noreferrer">
           {handle ? `@${handle}` : "X search"}
         </a>
@@ -645,10 +818,3 @@ function TweetCard({ tweet }: { tweet: TweetAttraction }) {
   );
 }
 
-function dedupe(tokens: TrackedToken[]): TrackedToken[] {
-  const map = new Map<string, TrackedToken>();
-  for (const token of tokens) {
-    if (!map.has(token.id)) map.set(token.id, token);
-  }
-  return [...map.values()];
-}

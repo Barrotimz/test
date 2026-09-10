@@ -35,6 +35,11 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/fx/, ""),
       },
+      "/pump": {
+        target: "https://frontend-api-v3.pump.fun",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/pump/, ""),
+      },
     },
   },
 });

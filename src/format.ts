@@ -6,6 +6,13 @@ export function compactCount(value?: number | null): string {
   return `${Math.round(value)}`;
 }
 
+export function compactPrice(value?: number): string {
+  if (value == null || Number.isNaN(value)) return "—";
+  if (value >= 1) return `$${value.toFixed(3)}`;
+  if (value >= 0.0001) return `$${value.toFixed(6)}`;
+  return `$${value.toExponential(2)}`;
+}
+
 export function compactUsd(value?: number): string {
   if (value == null || Number.isNaN(value)) return "—";
   const abs = Math.abs(value);

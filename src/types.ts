@@ -24,12 +24,17 @@ export type DexTokenPair = {
   baseToken: { address: string; name: string; symbol: string };
   quoteToken: { address: string; name: string; symbol: string };
   priceUsd?: string;
-  volume?: { h24?: number; h6?: number; h1?: number };
+  volume?: { h24?: number; h6?: number; h1?: number; m5?: number };
   priceChange?: { h24?: number; h6?: number; h1?: number; m5?: number };
   liquidity?: { usd?: number };
   fdv?: number;
   marketCap?: number;
   pairCreatedAt?: number;
+  txns?: {
+    m5?: { buys?: number; sells?: number };
+    h1?: { buys?: number; sells?: number };
+    h24?: { buys?: number; sells?: number };
+  };
   info?: {
     imageUrl?: string;
     socials?: { url: string; type: string }[];
@@ -37,6 +42,8 @@ export type DexTokenPair = {
   };
   boosts?: { active?: number };
 };
+
+export type TokenStage = "launching" | "live" | "graduated";
 
 export type TrackedToken = {
   id: string;
@@ -48,17 +55,30 @@ export type TrackedToken = {
   imageUrl?: string;
   priceUsd?: number;
   marketCap?: number;
+  fdv?: number;
+  volume5m?: number;
+  volume1h?: number;
   volume24h?: number;
+  change5m?: number;
   change1h?: number;
   change24h?: number;
   liquidity?: number;
   boostAmount?: number;
+  buys1h?: number;
+  sells1h?: number;
+  txns24h?: number;
+  dexId?: string;
   twitterUrl?: string;
   telegramUrl?: string;
   websiteUrl?: string;
   dexUrl: string;
   pairCreatedAt?: number;
-  source: "boost" | "profile" | "search" | "trending" | "watch";
+  replies?: number;
+  bondingPct?: number;
+  livestream?: boolean;
+  stage?: TokenStage;
+  seenAt?: number;
+  source: "boost" | "profile" | "search" | "trending" | "watch" | "launch" | "newpool";
 };
 
 export type Kol = {
@@ -67,4 +87,10 @@ export type Kol = {
   note: string;
 };
 
-export type TabId = "radar" | "boosts" | "trending" | "kols" | "scanner" | "watch";
+export type TabId = "launch" | "radar" | "boosts" | "trending" | "kols" | "scanner" | "watch";
+
+export type FeedEvent = {
+  id: string;
+  at: number;
+  text: string;
+};
