@@ -65,6 +65,7 @@ import {
 } from "./analyze";
 import { detectTodayMetas, metaForToken, metaSearchQueries, pickMetaCoins, type TodayMeta } from "./meta";
 import { pulseLabel, pulseStage, tapeQuality, twitterAgeChip } from "./read";
+import { isFreshPost, readVamp, tweetFreshLabel, vampScore } from "./vamp";
 import { pickBuyTape, patchBuys2m, type BuySample } from "./buys";
 import { pickRadarTokens, radarQuerySlice, hasXTrail, isTapeOpportunity, PLUMBER_CA } from "./social";
 import { listenPumpCreates } from "./pumpStream";
@@ -85,6 +86,7 @@ const MCAP_MS = 10_000;
 const SOCIAL_MS = 7000;
 const SOCIAL_BATCH = 6;
 const BOARD_LIMIT = 60;
+type SortMode = "heat" | "newest" | "hype" | "likes" | "learn" | "vamp";
 const TABS: { id: TabId; label: string; heat?: boolean }[] = [
   { id: "trending", label: "Trending", heat: true },
   { id: "meta", label: "Today's meta", heat: true },
@@ -173,7 +175,7 @@ export default function App() {
   const [rugError, setRugError] = useState<Record<string, string>>({});
   const [tweets, setTweets] = useState<TweetAttraction[]>([]);
   const [tweetBusy, setTweetBusy] = useState(false);
-  const [sortMode, setSortMode] = useState<"heat" | "newest" | "hype" | "likes" | "learn">("heat");
+  const [sortMode, setSortMode] = useState<SortMode>("heat");
   const [ageFilter, setAgeFilter] = useState<"all" | "fresh" | "bonding">("all");
   const [socialFilter, setSocialFilter] = useState<"all" | "twitter" | "likes">("all");
   const [padFilter, setPadFilter] = useState<string>("all");
@@ -752,17 +754,13 @@ export default function App() {
                 Clear search
               </button>
             )}
-            <select
-              value={sortMode}
-              onChange={(event) =>
-                setSortMode(event.target.value as "heat" | "newest" | "hype" | "likes" | "learn")
-              }
-            >
+            <select value={sortMode} onChange={(event) => setSortMode(event.target.value as SortMode)}>
               <option value="heat">Hot → warm → fresh</option>
               <option value="newest">Newest first</option>
               <option value="hype">Hottest first</option>
               <option value="likes">Most likes</option>
               <option value="learn">Looks like a runner</option>
+              <option value="vamp">Off a big account</option>
             </select>
           </div>
         </form>
@@ -1423,7 +1421,7 @@ function pickTokens(
 
 function sortTokens(
   tokens: TrackedToken[],
-  mode: "heat" | "newest" | "hype" | "likes" | "learn" | "keep",
+  mode: SortMode | "keep",
   brain: RunnerBrain = emptyBrain(),
   analyze: (token: TrackedToken) => ReturnType<typeof analyzeToken> = (token) => analyzeToken(token, brain),
 ): TrackedToken[] {
@@ -1443,6 +1441,8 @@ function sortTokens(
     copy.sort((a, b) => (b.tweetLikes ?? -1) - (a.tweetLikes ?? -1) || (tweetInteractions(b) ?? -1) - (tweetInteractions(a) ?? -1));
   } else if (mode === "learn") {
     copy.sort((a, b) => scoreAgainstBrain(b, brain).score - scoreAgainstBrain(a, brain).score);
+  } else if (mode === "vamp") {
+    copy.sort((a, b) => vampScore(b) - vampScore(a) || (b.tweetLikes ?? -1) - (a.tweetLikes ?? -1));
   } else {
     copy.sort((a, b) => scoreTokenHype(b).score - scoreTokenHype(a).score);
   }
@@ -1470,6 +1470,18 @@ function IntelChips({
     });
   } else if ((token.viewers ?? 0) > 0) {
     chips.unshift({ key: "live", label: `${compactCount(token.viewers)} watching`, tone: "ok" });
+  }
+  const vamp = readVamp(token);
+  if (vamp.label) {
+    chips.unshift({
+      key: "vamp",
+      label: vamp.label,
+      tone: vamp.tier === "major" ? "live" : vamp.tier === "notable" ? "ok" : "",
+    });
+  }
+  const postAge = tweetFreshLabel(token);
+  if (postAge) {
+    chips.unshift({ key: "post", label: postAge, tone: isFreshPost(token) ? "live" : "" });
   }
   if (stats?.devSold) chips.push({ key: "ds", label: "DS", tone: "warn" });
   else if (stats?.creatorPct != null) {

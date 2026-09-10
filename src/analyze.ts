@@ -5,6 +5,7 @@ import { mergeToken } from "./merge";
 import { pulseStage, tapeQuality, twitterAccountAgeMs } from "./read";
 import type { RugReport } from "./rug";
 import type { TrackedToken } from "./types";
+import { isFreshPost, readVamp, tweetFreshLabel } from "./vamp";
 
 export type HeatLane = "hot" | "warm" | "fresh" | "quiet" | "trap";
 
@@ -90,6 +91,18 @@ export function analyzeToken(token: TrackedToken, brain: RunnerBrain, rug?: RugR
   }
   if (views >= 5_000 && interactions / views < 0.004) {
     notes.push({ side: "against", text: "Lots of views, almost no replies/RTs — weak engagement" });
+  }
+
+  const vamp = readVamp(token);
+  if (vamp.vamped) {
+    score += vamp.tier === "major" ? 16 : vamp.tier === "notable" ? 11 : 6;
+    notes.push({ side: "for", text: vamp.reason ?? "Riding an outside account's reach" });
+  } else if (vamp.origin === "own" && likes < 25) {
+    notes.push({ side: "against", text: "Only its own account is posting, and nobody is biting" });
+  }
+  if (isFreshPost(token)) {
+    score += 10;
+    notes.push({ side: "for", text: `Post is minutes old (${tweetFreshLabel(token)}) — still early to it` });
   }
   if (likes >= 80 && vol1 < 500 && mcap < 15_000) {
     score -= 8;

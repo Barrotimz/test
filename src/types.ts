@@ -91,6 +91,7 @@ export type TrackedToken = {
   nsfw?: boolean;
   tweetUrl?: string;
   tweetText?: string;
+  tweetAt?: number;
   tweetLikes?: number;
   tweetRetweets?: number;
   tweetReplies?: number;

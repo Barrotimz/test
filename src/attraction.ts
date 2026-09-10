@@ -14,6 +14,8 @@ export type TweetAttraction = {
   handle: string;
   name: string;
   followers: number;
+  postedAt?: number;
+  authorJoinedAt?: number;
   likes: number;
   retweets: number;
   replies: number;
@@ -36,7 +38,8 @@ type FxTweet = {
     quotes?: number;
     bookmarks?: number;
     views?: number | null;
-    author?: { screen_name?: string; name?: string; followers?: number };
+    created_timestamp?: number;
+    author?: { screen_name?: string; name?: string; followers?: number; joined?: string };
   };
 };
 
@@ -161,6 +164,8 @@ export function socialPatchFromTweet(tweet: TweetAttraction): Partial<TrackedTok
     tweetViews: tweet.views,
     twitterFollowers: tweet.followers,
     twitterHandle: tweet.handle,
+    tweetAt: tweet.postedAt,
+    twitterJoinedAt: tweet.authorJoinedAt,
     socialCheckedAt: Date.now(),
   };
 }
@@ -226,6 +231,8 @@ export async function fetchTweetAttraction(id: string): Promise<TweetAttraction>
     handle: tweet.author?.screen_name ?? "unknown",
     name: tweet.author?.name ?? "",
     followers: tweet.author?.followers ?? 0,
+    postedAt: tweet.created_timestamp != null ? tweet.created_timestamp * 1000 : undefined,
+    authorJoinedAt: parseTwitterJoined(tweet.author?.joined),
     likes: tweet.likes ?? 0,
     retweets: tweet.retweets ?? 0,
     replies: tweet.replies ?? 0,
