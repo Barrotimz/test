@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractMentions } from "./extract";
+import { extractMentions, firstTweetId } from "./extract";
 
 describe("extractMentions", () => {
   it("pulls tickers, handles, and contract addresses from a tweet", () => {
@@ -22,6 +22,12 @@ describe("extractMentions", () => {
       "look https://x.com/jack/status/20 and https://twitter.com/foo/status/1234567890",
     );
     expect(mentions.tweetIds).toEqual(["20", "1234567890"]);
+  });
+
+  it("finds the first status id across mixed social fields", () => {
+    expect(
+      firstTweetId("https://x.com/just_anon_sf/status/2097848630296092846?s=20", "https://otcdesks.cash"),
+    ).toBe("2097848630296092846");
   });
 
   it("skips wrapped SOL", () => {

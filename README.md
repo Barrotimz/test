@@ -15,7 +15,7 @@ If you want sub-second tweet alerts into Telegram/Discord/bots:
 
 ## What this app does
 
-- **Launching** — pump.fun bonding-curve coins plus brand-new pools on BNB, Robinhood, Solana, ETH, Base, and the rest of the chain list. Re-scans every 5s without wiping the board.
+- **Launching** — pump.fun bonding-curve coins plus brand-new pools on BNB, Robinhood, Solana, ETH, Base, and the rest of the chain list. A global GeckoTerminal feed covers every supported network; a rotating per-chain scan fills gaps. Re-scans every 4s without wiping the board. Attached X status links auto-load likes, RTs, quotes, replies, views, and followers.
 - **Twitter radar** — latest DexScreener token profiles that include an X link
 - **Boosted** — tokens paying for visibility (attention, not quality)
 - **Trending** — GeckoTerminal trending pools (Solana / Base / BSC / Ethereum)
@@ -26,8 +26,9 @@ If you want sub-second tweet alerts into Telegram/Discord/bots:
   - Solana: [RugCheck](https://rugcheck.xyz) mint/freeze/LP lock + [GoPlus](https://gopluslabs.io) holders
   - EVM: GoPlus honeypot, tax, mint, creator bag, unverified source
   - Local pair stats: thin liquidity and brand-new pools
-- **Tweet attraction** — paste an `x.com/.../status/ID` link to score likes, RTs, quotes, replies, views, and author followers (`quiet` / `warming` / `hot` / `viral`)
-- **Token hype** — each card gets a market-attraction badge from 24h volume, 1h pump, Dex boosts, and turnover
+- **Tweet attraction** — launching coins with an X status link are scored automatically (likes, RTs, quotes, replies, views, followers). You can still paste an `x.com/.../status/ID` link in the CA scanner (`quiet` / `warming` / `hot` / `viral`)
+- **Token hype** — each card gets a market-attraction badge from 24h volume, 1h pump, Dex boosts, turnover, and tweet likes
+- **Filters** — last hour, still bonding, has X, has likes; sort newest / hottest / most likes
 - **Coin age** — pair/pool created-at on every card (`just launched`, `12m old`, `5h old`, `3d old`). Sort **Newest first** or **Hottest first**. These are already-trading coins, not unreleased launches.
 
 ## Run

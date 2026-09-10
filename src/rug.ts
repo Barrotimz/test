@@ -48,7 +48,22 @@ const GOPLUS_CHAIN: Record<string, string> = {
   ethereum: "1",
   eth: "1",
   bsc: "56",
+  polygon: "137",
+  arbitrum: "42161",
+  avalanche: "43114",
+  optimism: "10",
   base: "8453",
+  linea: "59144",
+  blast: "81457",
+  scroll: "534352",
+  mantle: "5000",
+  zksync: "324",
+  opbnb: "204",
+  cronos: "25",
+  gnosis: "100",
+  fantom: "250",
+  celo: "42220",
+  aurora: "1313161554",
 };
 
 function asPct(value?: number | string | null): number | undefined {

@@ -40,3 +40,7 @@ export function extractTweetIds(text: string): string[] {
   TWEET_URL_RE.lastIndex = 0;
   return unique([...text.matchAll(TWEET_URL_RE)].map((match) => match[1]));
 }
+
+export function firstTweetId(...parts: (string | undefined)[]): string | undefined {
+  return extractTweetIds(parts.filter(Boolean).join("\n"))[0];
+}

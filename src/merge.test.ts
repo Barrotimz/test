@@ -21,6 +21,14 @@ describe("mergeLists", () => {
     expect(second.map((item) => item.id)).toEqual(["a"]);
   });
 
+  it("keeps tweet likes when a later poll has no socials yet", () => {
+    const first = mergeLists([], [token("a", { tweetLikes: 420, twitterFollowers: 9000 })]);
+    const second = mergeLists(first, [token("a", { marketCap: 12_000 })]);
+    expect(second[0].tweetLikes).toBe(420);
+    expect(second[0].twitterFollowers).toBe(9000);
+    expect(second[0].marketCap).toBe(12_000);
+  });
+
   it("emits feed events only for first sightings", () => {
     const known = new Set(["a"]);
     const events = eventsForNew([token("a"), token("b", { symbol: "NEW", stage: "launching" })], known);

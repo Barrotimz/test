@@ -38,6 +38,17 @@ describe("scoreTokenHype", () => {
     expect(scoreTokenHype({ ...baseToken, volume24h: 800, change1h: 1 }).level).toBe("quiet");
   });
 
+  it("treats a well-liked launch tweet as hotter than market stats alone", () => {
+    const liked = scoreTokenHype({
+      ...baseToken,
+      volume24h: 800,
+      change1h: 1,
+      tweetLikes: 6_200,
+      twitterFollowers: 80_000,
+    });
+    expect(["hot", "viral"]).toContain(liked.level);
+  });
+
   it("goes hot when volume and a pump line up", () => {
     const hot = scoreTokenHype({
       ...baseToken,

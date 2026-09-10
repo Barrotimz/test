@@ -1,3 +1,5 @@
+import { firstTweetId } from "./extract";
+import { twitterHandle } from "./format";
 import type { TrackedToken } from "./types";
 
 const FX = import.meta.env.DEV ? "/fx" : "https://api.fxtwitter.com";
@@ -98,9 +100,89 @@ export function scoreTokenHype(token: TrackedToken): { score: number; level: Att
   if (mcap > 0 && vol / mcap >= 2) score += 16;
   else if (mcap > 0 && vol / mcap >= 0.6) score += 8;
 
+  const likes = token.tweetLikes ?? 0;
+  if (likes >= 5_000) score += 28;
+  else if (likes >= 400) score += 16;
+  else if (likes >= 40) score += 8;
+
+  if ((token.twitterFollowers ?? 0) >= 50_000) score += 10;
+  else if ((token.twitterFollowers ?? 0) >= 10_000) score += 5;
+
   const level: AttractionLevel =
     score >= 55 ? "viral" : score >= 32 ? "hot" : score >= 14 ? "warming" : "quiet";
   return { score: Math.min(100, score), level };
+}
+
+type FxUser = {
+  code?: number;
+  user?: {
+    screen_name?: string;
+    name?: string;
+    followers?: number;
+    tweets?: number;
+    description?: string;
+  };
+};
+
+export async function fetchTwitterUser(handle: string): Promise<{
+  handle: string;
+  name: string;
+  followers: number;
+  tweets: number;
+  description: string;
+}> {
+  const response = await fetch(`${FX}/${encodeURIComponent(handle)}`);
+  if (!response.ok) throw new Error(`@${handle} returned ${response.status}`);
+  const data = (await response.json()) as FxUser;
+  if (!data.user?.screen_name) throw new Error(`No profile for @${handle}`);
+  return {
+    handle: data.user.screen_name,
+    name: data.user.name ?? "",
+    followers: data.user.followers ?? 0,
+    tweets: data.user.tweets ?? 0,
+    description: data.user.description ?? "",
+  };
+}
+
+export function socialPatchFromTweet(tweet: TweetAttraction): Partial<TrackedToken> {
+  return {
+    twitterUrl: tweet.url,
+    tweetUrl: tweet.url,
+    tweetText: tweet.text,
+    tweetLikes: tweet.likes,
+    tweetRetweets: tweet.retweets,
+    tweetReplies: tweet.replies,
+    tweetQuotes: tweet.quotes,
+    tweetBookmarks: tweet.bookmarks,
+    tweetViews: tweet.views,
+    twitterFollowers: tweet.followers,
+    twitterHandle: tweet.handle,
+    socialCheckedAt: Date.now(),
+  };
+}
+
+export async function enrichTokenSocial(token: TrackedToken): Promise<Partial<TrackedToken>> {
+  const tweetId = firstTweetId(token.twitterUrl, token.tweetUrl, token.websiteUrl, token.description);
+  if (tweetId) {
+    return socialPatchFromTweet(await fetchTweetAttraction(tweetId));
+  }
+  const handle = twitterHandle(token.twitterUrl) ?? token.twitterHandle;
+  if (!handle) return { socialCheckedAt: Date.now() };
+  const user = await fetchTwitterUser(handle);
+  return {
+    twitterHandle: user.handle,
+    twitterFollowers: user.followers,
+    twitterTweets: user.tweets,
+    socialCheckedAt: Date.now(),
+  };
+}
+
+export function needsSocialEnrichment(token: TrackedToken, now = Date.now()): boolean {
+  if (!token.twitterUrl && !token.tweetUrl && !firstTweetId(token.description, token.websiteUrl)) {
+    return false;
+  }
+  if (token.socialCheckedAt && now - token.socialCheckedAt < 90_000) return false;
+  return token.tweetLikes == null && token.twitterFollowers == null;
 }
 
 export async function fetchTweetAttraction(id: string): Promise<TweetAttraction> {

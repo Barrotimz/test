@@ -153,7 +153,7 @@ img {
 
 .cards {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 12px;
 }
 
@@ -172,6 +172,12 @@ img {
   flex-direction: column;
   gap: 10px;
   min-height: 210px;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.card:hover {
+  border-color: #2d6a78;
+  transform: translateY(-1px);
 }
 
 .card-head {
@@ -497,6 +503,10 @@ img {
 
 .chain-chips {
   margin-bottom: 14px;
+}
+
+.filters {
+  margin-bottom: 12px;
 }
 
 .curve {

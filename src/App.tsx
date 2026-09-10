@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   fetchBoosts,
+  fetchGeckoGlobal,
   fetchGeckoPools,
   fetchProfiles,
   fetchPumpHottest,
@@ -11,7 +12,13 @@ import {
 } from "./api";
 import { CHAINS, GECKO_NETWORKS, chainLabel, normalizeChain } from "./chains";
 import { eventsForNew, mergeLists } from "./merge";
-import { fetchTweetAttractions, scoreTokenHype, type TweetAttraction } from "./attraction";
+import {
+  enrichTokenSocial,
+  fetchTweetAttractions,
+  needsSocialEnrichment,
+  scoreTokenHype,
+  type TweetAttraction,
+} from "./attraction";
 import { checkTokenRug, type RugReport } from "./rug";
 import { extractMentions } from "./extract";
 import {
@@ -79,10 +86,26 @@ export default function App() {
   const [rugError, setRugError] = useState<Record<string, string>>({});
   const [tweets, setTweets] = useState<TweetAttraction[]>([]);
   const [tweetBusy, setTweetBusy] = useState(false);
-  const [sortMode, setSortMode] = useState<"newest" | "hype">("newest");
+  const [sortMode, setSortMode] = useState<"newest" | "hype" | "likes">("newest");
+  const [ageFilter, setAgeFilter] = useState<"all" | "fresh" | "bonding">("all");
+  const [socialFilter, setSocialFilter] = useState<"all" | "twitter" | "likes">("all");
 
   const knownIds = useRef(new Set<string>());
   const cycle = useRef(0);
+  const bagsRef = useRef({ launching, radar, boosts, trending, watch });
+  bagsRef.current = { launching, radar, boosts, trending, watch };
+
+  const patchToken = useCallback((id: string, extra: Partial<TrackedToken>) => {
+    const apply = (prev: TrackedToken[]) =>
+      prev.map((token) => (token.id === id ? { ...token, ...extra } : token));
+    setLaunching(apply);
+    setRadar(apply);
+    setBoosts(apply);
+    setTrending(apply);
+    setWatch(apply);
+    setScanned(apply);
+    setSearchHits(apply);
+  }, []);
 
   const ingest = useCallback((incoming: TrackedToken[], setter: (fn: (prev: TrackedToken[]) => TrackedToken[]) => void) => {
     if (incoming.length === 0) return;
@@ -99,29 +122,30 @@ export default function App() {
     setError(null);
     if (knownIds.current.size === 0) setStatus("busy");
     const tick = cycle.current++;
-    const start = geckoCursor.current % GECKO_NETWORKS.length;
-    const nets = [GECKO_NETWORKS[start], GECKO_NETWORKS[(start + 1) % GECKO_NETWORKS.length]].filter(Boolean);
-    geckoCursor.current = start + 2;
+    const net = GECKO_NETWORKS[geckoCursor.current % GECKO_NETWORKS.length];
+    geckoCursor.current += 1;
     try {
       const jobs: Promise<void>[] = [
-        fetchPumpNewest(36)
+        fetchPumpNewest(48)
           .then((rows) => ingest(rows, setLaunching))
           .catch(() => undefined),
-        Promise.all(nets.map((net) => fetchGeckoPools(net, "new_pools"))).then((groups) => {
-          const rows = groups.flat();
+        fetchGeckoGlobal("new_pools", tick % 2 === 0 ? 1 : 2).then((rows) => {
           ingest(rows, setLaunching);
           ingest(rows, setTrending);
+          const needDepth = rows.length === 0 || tick % 2 === 1;
+          if (needDepth && net) {
+            return fetchGeckoPools(net, "new_pools").then((depth) => {
+              ingest(depth, setLaunching);
+              ingest(depth, setTrending);
+            });
+          }
         }),
       ];
       if (tick % 2 === 0) {
-        jobs.push(fetchPumpHottest(20).then((rows) => ingest(rows, setLaunching)).catch(() => undefined));
+        jobs.push(fetchPumpHottest(24).then((rows) => ingest(rows, setLaunching)).catch(() => undefined));
       }
-      if (tick % 3 === 1) {
-        jobs.push(
-          Promise.all(nets.map((net) => fetchGeckoPools(net, "trending_pools"))).then((groups) =>
-            ingest(groups.flat(), setTrending),
-          ),
-        );
+      if (tick % 4 === 1) {
+        jobs.push(fetchGeckoGlobal("trending_pools").then((rows) => ingest(rows, setTrending)));
       }
       if (tick % 3 === 0) {
         jobs.push(
@@ -157,7 +181,7 @@ export default function App() {
     const loop = async () => {
       while (alive) {
         await refresh();
-        await new Promise((resolve) => setTimeout(resolve, 5000));
+        await new Promise((resolve) => setTimeout(resolve, 4000));
       }
     };
     void loop();
@@ -165,6 +189,30 @@ export default function App() {
       alive = false;
     };
   }, [refresh]);
+
+  useEffect(() => {
+    let alive = true;
+    const loop = async () => {
+      while (alive) {
+        const bag = Object.values(bagsRef.current).flat();
+        const need = bag.filter((token) => needsSocialEnrichment(token)).slice(0, 4);
+        await Promise.all(
+          need.map(async (token) => {
+            try {
+              patchToken(token.id, await enrichTokenSocial(token));
+            } catch {
+              patchToken(token.id, { socialCheckedAt: Date.now() });
+            }
+          }),
+        );
+        await new Promise((resolve) => setTimeout(resolve, 5500));
+      }
+    };
+    void loop();
+    return () => {
+      alive = false;
+    };
+  }, [patchToken]);
 
   useEffect(() => {
     localStorage.setItem(WATCH_KEY, JSON.stringify(watch));
@@ -261,8 +309,17 @@ export default function App() {
       scanned,
       query,
     }).filter((token) => {
-      if (enabledChains.length === 0 || enabledChains.length === CHAINS.length) return true;
-      return enabledChains.includes(normalizeChain(token.chainId));
+      if (enabledChains.length > 0 && enabledChains.length !== CHAINS.length) {
+        if (!enabledChains.includes(normalizeChain(token.chainId))) return false;
+      }
+      if (ageFilter === "fresh" && coinAgeBucket(token.pairCreatedAt) !== "fresh") return false;
+      if (ageFilter === "bonding" && token.stage !== "launching") return false;
+      if (socialFilter === "twitter" && !token.twitterUrl && !token.twitterHandle) return false;
+      if (socialFilter === "likes" && !(token.tweetLikes && token.tweetLikes > 0)) return false;
+      const needle = query.trim().toLowerCase();
+      if (!needle || (tab === "radar" && searchHits.length)) return true;
+      const hay = `${token.symbol} ${token.name} ${token.tokenAddress} ${token.chainId} ${token.twitterHandle ?? ""}`.toLowerCase();
+      return hay.includes(needle);
     }),
     sortMode,
   );
@@ -275,7 +332,7 @@ export default function App() {
           <div className="logo">XR</div>
           <div>
             <h1>XMeme Radar</h1>
-            <p>No-gap sniffer: pump.fun launches, new pools, and socials across BNB, Robinhood, Solana, ETH, Base, and more.</p>
+            <p>Continuous sniffer for upcoming and just-launched coins on BNB, Robinhood, Solana, ETH, Base, and every other chain we can reach — plus tweet likes when a post is attached.</p>
           </div>
         </div>
         <form className="search-wrap" onSubmit={onSearch}>
@@ -302,9 +359,13 @@ export default function App() {
                 Clear search
               </button>
             )}
-            <select value={sortMode} onChange={(event) => setSortMode(event.target.value as "newest" | "hype")}>
+            <select
+              value={sortMode}
+              onChange={(event) => setSortMode(event.target.value as "newest" | "hype" | "likes")}
+            >
               <option value="newest">Newest first</option>
               <option value="hype">Hottest first</option>
+              <option value="likes">Most likes</option>
             </select>
           </div>
         </form>
@@ -313,10 +374,10 @@ export default function App() {
       <div className="banner">
         <h2>What this tracks</h2>
         <p>
-          Launching watches bonding-curve coins (pump.fun) and brand-new pools on every chain we
-          can reach, including BNB and Robinhood. The scanner re-checks every 5 seconds and never
-          clears the board. Cards show age, price, liquidity, txs, replies, and tweet likes when
-          you paste a status link.
+          Launching watches pump.fun bonding-curve coins and the newest pools across every
+          GeckoTerminal network, including BNB and Robinhood. The board refreshes every 4 seconds
+          and never wipes. If a coin posts an X status link we pull likes, RTs, quotes, replies,
+          views, and follower count automatically. Profile-only links still get follower counts.
         </p>
       </div>
 
@@ -324,6 +385,7 @@ export default function App() {
         <span className={`status ${status}`} />
         <b>{enabledChains.length}</b> chains
         <b>{seen}</b> new this session
+        <b>{launching.filter((token) => token.tweetLikes != null).length}</b> with likes
         <b>{launching.length + radar.length + boosts.length + trending.length}</b> in memory
         <span>{updatedAt ? `scan ${ageLabel(updatedAt)} ago` : "starting…"}</span>
       </div>
@@ -365,11 +427,52 @@ export default function App() {
         ))}
       </div>
 
+      <div className="chips filters">
+        {[
+          { id: "all", label: "All ages" },
+          { id: "fresh", label: "Last hour" },
+          { id: "bonding", label: "Still bonding" },
+        ].map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            className={`chip ${ageFilter === item.id ? "on" : ""}`}
+            onClick={() => setAgeFilter(item.id as typeof ageFilter)}
+          >
+            {item.label}
+          </button>
+        ))}
+        {[
+          { id: "all", label: "All socials" },
+          { id: "twitter", label: "Has X link" },
+          { id: "likes", label: "Has likes" },
+        ].map((item) => (
+          <button
+            key={`social-${item.id}`}
+            type="button"
+            className={`chip ${socialFilter === item.id ? "on" : ""}`}
+            onClick={() => setSocialFilter(item.id as typeof socialFilter)}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+
       <nav className="tabs">
         {TABS.map((item) => (
           <button key={item.id} className={tab === item.id ? "active" : ""} onClick={() => setTab(item.id)}>
             {item.label}
-            {item.id === "watch" ? ` (${watch.length})` : item.id === "launch" ? ` (${launching.length})` : ""}
+            {item.id === "watch"
+            ? ` (${watch.length})`
+            : item.id === "launch"
+              ? ` (${launching.length})`
+              : item.id === "radar"
+                ? ` (${radar.length})`
+                : item.id === "boosts"
+                  ? ` (${boosts.length})`
+                  : item.id === "trending"
+                    ? ` (${trending.length})`
+                    : ""}
           </button>
         ))}
       </nav>
@@ -509,6 +612,14 @@ export default function App() {
                   {compactPrice(opened.priceUsd)}
                 </div>
                 <div>
+                  <span>Mcap</span>
+                  {compactUsd(opened.marketCap)}
+                </div>
+                <div>
+                  <span>FDV</span>
+                  {compactUsd(opened.fdv)}
+                </div>
+                <div>
                   <span>Liq</span>
                   {compactUsd(opened.liquidity)}
                 </div>
@@ -517,11 +628,59 @@ export default function App() {
                   {compactUsd(opened.volume5m)}
                 </div>
                 <div>
-                  <span>1h txs</span>
-                  {compactCount((opened.buys1h ?? 0) + (opened.sells1h ?? 0))}
+                  <span>1h vol</span>
+                  {compactUsd(opened.volume1h)}
                 </div>
                 <div>
-                  <span>Replies</span>
+                  <span>24h vol</span>
+                  {compactUsd(opened.volume24h)}
+                </div>
+                <div>
+                  <span>5m</span>
+                  <b className={(opened.change5m ?? 0) < 0 ? "neg" : "pos"}>{pct(opened.change5m)}</b>
+                </div>
+                <div>
+                  <span>1h</span>
+                  <b className={(opened.change1h ?? 0) < 0 ? "neg" : "pos"}>{pct(opened.change1h)}</b>
+                </div>
+                <div>
+                  <span>Buys 1h</span>
+                  {compactCount(opened.buys1h)}
+                </div>
+                <div>
+                  <span>Sells 1h</span>
+                  {compactCount(opened.sells1h)}
+                </div>
+                <div>
+                  <span>Buyers</span>
+                  {compactCount(opened.buyers1h)}
+                </div>
+                <div>
+                  <span>Likes</span>
+                  {compactCount(opened.tweetLikes)}
+                </div>
+                <div>
+                  <span>RTs</span>
+                  {compactCount(opened.tweetRetweets)}
+                </div>
+                <div>
+                  <span>Quotes</span>
+                  {compactCount(opened.tweetQuotes)}
+                </div>
+                <div>
+                  <span>Tweet replies</span>
+                  {compactCount(opened.tweetReplies)}
+                </div>
+                <div>
+                  <span>Views</span>
+                  {compactCount(opened.tweetViews)}
+                </div>
+                <div>
+                  <span>Followers</span>
+                  {compactCount(opened.twitterFollowers)}
+                </div>
+                <div>
+                  <span>Pump replies</span>
                   {compactCount(opened.replies)}
                 </div>
                 <div>
@@ -529,6 +688,13 @@ export default function App() {
                   {opened.bondingPct != null ? `${opened.bondingPct}%` : "—"}
                 </div>
               </div>
+              {opened.tweetText && <p className="desc">{opened.tweetText}</p>}
+              <p className="sub">
+                {opened.username ? `@${opened.username}` : ""}
+                {opened.creator ? ` · ${shortAddress(opened.creator)}` : ""}
+                {opened.dexId ? ` · ${opened.dexId}` : ""}
+                {opened.kingOfHill ? " · king of the hill" : ""}
+              </p>
               <div className="actions">
                 <button
                   className="mini"
@@ -556,8 +722,24 @@ export default function App() {
             </a>
           </div>
           <h2 style={{ marginTop: 22 }}>Tweet attraction</h2>
-          {tweets.length === 0 ? (
-            <p>Paste an x.com/status link in CA scanner to see likes, RTs, and reach.</p>
+          {opened?.tweetLikes != null ? (
+            <div className="kol">
+              <div>
+                <div className="sym">@{opened.twitterHandle ?? "tweet"}</div>
+                <div className="sub">
+                  {compactCount(opened.tweetLikes)} likes · {compactCount(opened.tweetRetweets)} RTs ·{" "}
+                  {compactCount(opened.tweetViews)} views
+                </div>
+              </div>
+              {opened.tweetUrl && (
+                <a className="mini x" href={opened.tweetUrl} target="_blank" rel="noreferrer">
+                  Open
+                </a>
+              )}
+            </div>
+          ) : null}
+          {tweets.length === 0 && opened?.tweetLikes == null ? (
+            <p>Launch cards auto-pull likes from attached X posts. You can also paste a status link in CA scanner.</p>
           ) : (
             tweets.map((tweet) => (
               <div className="kol" key={`side-${tweet.id}`}>
@@ -608,8 +790,9 @@ export default function App() {
       </div>
 
       <p className="notice">
-        Continuous public scans of pump.fun, DexScreener, GeckoTerminal, RugCheck, and GoPlus.
-        Tweet likes need a pasted status URL. Heuristics only. Not financial advice.
+        Continuous public scans of pump.fun, DexScreener, GeckoTerminal, RugCheck, GoPlus, and
+        fxtwitter. Likes come from attached X status links; profile-only accounts show followers.
+        Heuristics only. Not financial advice.
       </p>
     </div>
   );
@@ -638,10 +821,12 @@ function pickTokens(
   return bags.radar;
 }
 
-function sortTokens(tokens: TrackedToken[], mode: "newest" | "hype"): TrackedToken[] {
+function sortTokens(tokens: TrackedToken[], mode: "newest" | "hype" | "likes"): TrackedToken[] {
   const copy = [...tokens];
   if (mode === "newest") {
     copy.sort((a, b) => (toMillis(b.pairCreatedAt) ?? 0) - (toMillis(a.pairCreatedAt) ?? 0));
+  } else if (mode === "likes") {
+    copy.sort((a, b) => (b.tweetLikes ?? -1) - (a.tweetLikes ?? -1));
   } else {
     copy.sort((a, b) => scoreTokenHype(b).score - scoreTokenHype(a).score);
   }
@@ -723,8 +908,40 @@ function TokenCard({
           <b className={ageBucket}>{coinAgeLabel(token.pairCreatedAt)}</b>
         </div>
         <div>
+          <span>5m vol</span>
+          {compactUsd(token.volume5m)}
+        </div>
+        <div>
+          <span>Buys 1h</span>
+          {compactCount(token.buys1h)}
+        </div>
+        <div>
+          <span>Sells 1h</span>
+          {compactCount(token.sells1h)}
+        </div>
+        <div>
           <span>Replies</span>
           {compactCount(token.replies)}
+        </div>
+        <div>
+          <span>Likes</span>
+          {compactCount(token.tweetLikes)}
+        </div>
+        <div>
+          <span>RTs</span>
+          {compactCount(token.tweetRetweets)}
+        </div>
+        <div>
+          <span>Views</span>
+          {compactCount(token.tweetViews)}
+        </div>
+        <div>
+          <span>Followers</span>
+          {compactCount(token.twitterFollowers)}
+        </div>
+        <div>
+          <span>Quotes</span>
+          {compactCount(token.tweetQuotes)}
         </div>
       </div>
       {token.bondingPct != null && token.stage === "launching" && (
@@ -759,6 +976,22 @@ function TokenCard({
         <a className="mini" href={token.dexUrl} target="_blank" rel="noreferrer">
           Chart
         </a>
+        {token.telegramUrl && (
+          <a className="mini" href={token.telegramUrl} target="_blank" rel="noreferrer">
+            TG
+          </a>
+        )}
+        {token.websiteUrl && (
+          <a className="mini" href={token.websiteUrl} target="_blank" rel="noreferrer">
+            Web
+          </a>
+        )}
+        <button
+          className="mini"
+          onClick={() => void navigator.clipboard.writeText(token.tokenAddress)}
+        >
+          Copy CA
+        </button>
         <button className="mini" onClick={onWatch}>
           {watched ? "Unwatch" : "Watch"}
         </button>

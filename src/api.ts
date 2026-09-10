@@ -1,5 +1,6 @@
-import { normalizeChain } from "./chains";
-import { tokenImage } from "./format";
+import { geckoNetworkId, normalizeChain } from "./chains";
+import { firstTweetId } from "./extract";
+import { tokenImage, twitterHandle } from "./format";
 import type { DexBoost, DexTokenPair, TrackedToken } from "./types";
 
 const DEX = import.meta.env.DEV ? "/dex" : "https://api.dexscreener.com";
@@ -156,6 +157,7 @@ export async function hydrateBoosts(boosts: DexBoost[], source: TrackedToken["so
 }
 
 type GeckoPool = {
+  id: string;
   attributes: {
     name: string;
     address: string;
@@ -166,18 +168,44 @@ type GeckoPool = {
     price_change_percentage?: { m5?: string; h1?: string; h24?: string };
     reserve_in_usd?: string;
     pool_created_at?: string;
-    transactions?: { h1?: { buys?: number; sells?: number }; h24?: { buys?: number; sells?: number } };
+    transactions?: {
+      m5?: { buys?: number; sells?: number };
+      h1?: { buys?: number; sells?: number; buyers?: number; sellers?: number };
+      h24?: { buys?: number; sells?: number };
+    };
   };
   relationships?: {
     base_token?: { data?: { id: string } };
     dex?: { data?: { id: string } };
+    network?: { data?: { id: string } };
   };
 };
 
-function geckoToToken(pool: GeckoPool, network: string, source: TrackedToken["source"]): TrackedToken {
+type GeckoIncluded = {
+  id: string;
+  type: string;
+  attributes?: {
+    address?: string;
+    name?: string;
+    symbol?: string;
+    image_url?: string;
+  };
+};
+
+function geckoToToken(
+  pool: GeckoPool,
+  network: string,
+  source: TrackedToken["source"],
+  included?: Map<string, GeckoIncluded>,
+): TrackedToken {
   const tokenId = pool.relationships?.base_token?.data?.id ?? "";
-  const tokenAddress = tokenId.includes("_") ? tokenId.slice(tokenId.indexOf("_") + 1) : pool.attributes.address;
-  const [name, symbol] = splitPoolName(pool.attributes.name);
+  const meta = tokenId ? included?.get(tokenId) : undefined;
+  const tokenAddress =
+    meta?.attributes?.address ||
+    (tokenId.includes("_") ? tokenId.slice(tokenId.indexOf("_") + 1) : pool.attributes.address);
+  const [fallbackName, fallbackSymbol] = splitPoolName(pool.attributes.name);
+  const name = meta?.attributes?.name || fallbackName;
+  const symbol = (meta?.attributes?.symbol || fallbackSymbol).replace(/^\$/, "");
   const chainId = normalizeChain(network === "eth" ? "ethereum" : network);
   const created = pool.attributes.pool_created_at ? Date.parse(pool.attributes.pool_created_at) : undefined;
   const ageMs = created ? Date.now() - created : undefined;
@@ -187,7 +215,7 @@ function geckoToToken(pool: GeckoPool, network: string, source: TrackedToken["so
     tokenAddress,
     name,
     symbol,
-    imageUrl: tokenImage(chainId, tokenAddress),
+    imageUrl: tokenImage(chainId, tokenAddress, meta?.attributes?.image_url),
     priceUsd: num(pool.attributes.base_token_price_usd),
     marketCap: num(pool.attributes.market_cap_usd) ?? num(pool.attributes.fdv_usd),
     fdv: num(pool.attributes.fdv_usd),
@@ -198,8 +226,12 @@ function geckoToToken(pool: GeckoPool, network: string, source: TrackedToken["so
     change1h: num(pool.attributes.price_change_percentage?.h1),
     change24h: num(pool.attributes.price_change_percentage?.h24),
     liquidity: num(pool.attributes.reserve_in_usd),
+    buys5m: pool.attributes.transactions?.m5?.buys,
+    sells5m: pool.attributes.transactions?.m5?.sells,
     buys1h: pool.attributes.transactions?.h1?.buys,
     sells1h: pool.attributes.transactions?.h1?.sells,
+    buyers1h: pool.attributes.transactions?.h1?.buyers,
+    sellers1h: pool.attributes.transactions?.h1?.sellers,
     txns24h: txnSum(pool.attributes.transactions?.h24),
     dexId: pool.relationships?.dex?.data?.id,
     dexUrl: `https://dexscreener.com/${chainId}/${tokenAddress}`,
@@ -210,10 +242,38 @@ function geckoToToken(pool: GeckoPool, network: string, source: TrackedToken["so
   };
 }
 
+function mapGeckoPayload(
+  data: { data?: GeckoPool[]; included?: GeckoIncluded[] } | undefined,
+  fallbackNetwork: string | undefined,
+  source: TrackedToken["source"],
+): TrackedToken[] {
+  const included = new Map((data?.included ?? []).map((item) => [item.id, item]));
+  return (data?.data ?? []).map((pool) => {
+    const network = geckoNetworkId(pool.id, pool.relationships?.network?.data?.id ?? fallbackNetwork);
+    return geckoToToken(pool, network, source, included);
+  });
+}
+
 export async function fetchGeckoPools(network: string, kind: "new_pools" | "trending_pools"): Promise<TrackedToken[]> {
   try {
-    const data = await getJson<{ data?: GeckoPool[] }>(`${GECKO}/api/v2/networks/${network}/${kind}?page=1`);
-    return (data.data ?? []).map((pool) => geckoToToken(pool, network, kind === "new_pools" ? "newpool" : "trending"));
+    const data = await getJson<{ data?: GeckoPool[]; included?: GeckoIncluded[] }>(
+      `${GECKO}/api/v2/networks/${network}/${kind}?page=1&include=base_token`,
+    );
+    return mapGeckoPayload(data, network, kind === "new_pools" ? "newpool" : "trending");
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchGeckoGlobal(
+  kind: "new_pools" | "trending_pools",
+  page = 1,
+): Promise<TrackedToken[]> {
+  try {
+    const data = await getJson<{ data?: GeckoPool[]; included?: GeckoIncluded[] }>(
+      `${GECKO}/api/v2/networks/${kind}?page=${page}&include=base_token,network`,
+    );
+    return mapGeckoPayload(data, undefined, kind === "new_pools" ? "newpool" : "trending");
   } catch {
     return [];
   }
@@ -240,6 +300,9 @@ type PumpCoin = {
   is_currently_live?: boolean;
   real_sol_reserves?: number;
   username?: string;
+  creator?: string;
+  nsfw?: boolean;
+  king_of_the_hill_timestamp?: number | null;
 };
 
 export function bondingPct(realSolReserves?: number): number | undefined {
@@ -257,6 +320,7 @@ function pumpSocial(raw?: string, kind: "twitter" | "telegram" | "web" = "web"):
 
 function pumpToToken(coin: PumpCoin): TrackedToken {
   const twitter = pumpSocial(coin.twitter, "twitter");
+  const tweetId = firstTweetId(twitter, coin.description, coin.website);
   return {
     id: `solana:${coin.mint}`,
     chainId: "solana",
@@ -274,6 +338,12 @@ function pumpToToken(coin: PumpCoin): TrackedToken {
     replies: coin.reply_count,
     bondingPct: coin.complete ? 100 : bondingPct(coin.real_sol_reserves),
     livestream: coin.is_currently_live,
+    creator: coin.creator,
+    username: coin.username,
+    nsfw: coin.nsfw,
+    kingOfHill: Boolean(coin.king_of_the_hill_timestamp),
+    tweetUrl: tweetId ? `https://x.com/i/web/status/${tweetId}` : undefined,
+    twitterHandle: twitterHandle(twitter),
     stage: coin.complete ? "graduated" : "launching",
     seenAt: Date.now(),
     source: "launch",

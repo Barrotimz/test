@@ -34,6 +34,16 @@ export const CHAINS: ChainDef[] = [
   { id: "flare", gecko: "flare", label: "Flare" },
   { id: "cronos", gecko: "cro", label: "Cronos" },
   { id: "tron", gecko: "tron", label: "TRON" },
+  { id: "fantom", gecko: "ftm", label: "Fantom" },
+  { id: "gnosis", gecko: "xdai", label: "Gnosis" },
+  { id: "celo", gecko: "celo", label: "Celo" },
+  { id: "aurora", gecko: "aurora", label: "Aurora" },
+  { id: "metis", gecko: "metis", label: "Metis" },
+  { id: "moonbeam", gecko: "glmr", label: "Moonbeam" },
+  { id: "kaia", gecko: "kaia", label: "Kaia" },
+  { id: "ronin", gecko: "ronin", label: "Ronin" },
+  { id: "ink", gecko: "ink", label: "Ink" },
+  { id: "monad", gecko: "monad", label: "Monad" },
 ];
 
 const ALIASES: Record<string, string> = {
@@ -52,6 +62,14 @@ const ALIASES: Record<string, string> = {
   "world-chain": "worldchain",
   cro: "cronos",
   cronos: "cronos",
+  ftm: "fantom",
+  fantom: "fantom",
+  xdai: "gnosis",
+  gnosis: "gnosis",
+  glmr: "moonbeam",
+  moonbeam: "moonbeam",
+  movr: "moonriver",
+  moonriver: "moonriver",
 };
 
 export function normalizeChain(id: string): string {
@@ -66,3 +84,14 @@ export function chainLabel(id: string): string {
 export const GECKO_NETWORKS = CHAINS.map((chain) => chain.gecko).filter(
   (id): id is string => Boolean(id),
 );
+
+const GECKO_PREFIXES = [...GECKO_NETWORKS].sort((a, b) => b.length - a.length);
+
+export function geckoNetworkId(poolId: string, relationshipId?: string): string {
+  if (relationshipId) return relationshipId;
+  for (const network of GECKO_PREFIXES) {
+    if (poolId.startsWith(`${network}_`)) return network;
+  }
+  const cut = poolId.indexOf("_");
+  return cut === -1 ? poolId : poolId.slice(0, cut);
+}
