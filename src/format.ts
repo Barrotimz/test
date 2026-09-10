@@ -28,11 +28,48 @@ export function shortAddress(address: string): string {
   return `${address.slice(0, 4)}…${address.slice(-4)}`;
 }
 
+export function toMillis(timestamp?: number): number | undefined {
+  if (timestamp == null || Number.isNaN(timestamp)) return undefined;
+  return timestamp > 1e12 ? timestamp : timestamp * 1000;
+}
+
+export function pairAgeMs(timestamp?: number, now = Date.now()): number | undefined {
+  const created = toMillis(timestamp);
+  if (created == null) return undefined;
+  return Math.max(0, now - created);
+}
+
+export type AgeBucket = "fresh" | "new" | "recent" | "aged" | "unknown";
+
+export function coinAgeBucket(timestamp?: number, now = Date.now()): AgeBucket {
+  const ms = pairAgeMs(timestamp, now);
+  if (ms == null) return "unknown";
+  if (ms < 60 * 60 * 1000) return "fresh";
+  if (ms < 24 * 60 * 60 * 1000) return "new";
+  if (ms < 7 * 24 * 60 * 60 * 1000) return "recent";
+  return "aged";
+}
+
+export function coinAgeLabel(timestamp?: number, now = Date.now()): string {
+  const ms = pairAgeMs(timestamp, now);
+  if (ms == null) return "—";
+  const mins = Math.floor(ms / 60_000);
+  if (mins < 1) return "just launched";
+  if (mins < 60) return `${mins}m old`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h old`;
+  const days = Math.floor(hours / 24);
+  if (days < 14) return `${days}d old`;
+  if (days < 60) return `${Math.floor(days / 7)}w old`;
+  const months = Math.floor(days / 30);
+  if (months < 24) return `${months}mo old`;
+  return `${Math.floor(days / 365)}y old`;
+}
+
 export function ageLabel(timestamp?: number): string {
-  if (!timestamp) return "";
-  const ms = timestamp > 1e12 ? timestamp : timestamp * 1000;
-  const diff = Date.now() - ms;
-  const mins = Math.floor(diff / 60_000);
+  const ms = pairAgeMs(timestamp);
+  if (ms == null) return "";
+  const mins = Math.floor(ms / 60_000);
   if (mins < 1) return "just now";
   if (mins < 60) return `${mins}m`;
   const hours = Math.floor(mins / 60);

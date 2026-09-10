@@ -235,6 +235,38 @@ img {
   color: var(--lime);
 }
 
+.badge.fresh {
+  background: #24380f;
+  color: var(--lime);
+}
+
+.badge.new {
+  background: #12363a;
+  color: var(--cyan);
+}
+
+.badge.recent {
+  background: #3a2f12;
+  color: #f5c451;
+}
+
+.badge.aged {
+  background: var(--panel-2);
+  color: var(--muted);
+}
+
+.metrics .fresh {
+  color: var(--lime);
+}
+
+.metrics .new {
+  color: var(--cyan);
+}
+
+.metrics .recent {
+  color: #f5c451;
+}
+
 .tweet-card {
   margin-top: 12px;
   padding: 12px;
@@ -321,7 +353,7 @@ img {
 
 .metrics {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
   font-family: "IBM Plex Mono", monospace;
   font-size: 12px;

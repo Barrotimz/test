@@ -12,11 +12,14 @@ import { checkTokenRug, type RugReport } from "./rug";
 import { extractMentions } from "./extract";
 import {
   ageLabel,
+  coinAgeBucket,
+  coinAgeLabel,
   compactCount,
   compactUsd,
   liveSearchUrl,
   pct,
   shortAddress,
+  toMillis,
   tokenSearchQuery,
   twitterHandle,
 } from "./format";
@@ -65,6 +68,7 @@ export default function App() {
   const [rugError, setRugError] = useState<Record<string, string>>({});
   const [tweets, setTweets] = useState<TweetAttraction[]>([]);
   const [tweetBusy, setTweetBusy] = useState(false);
+  const [sortMode, setSortMode] = useState<"newest" | "hype">("newest");
 
   const refresh = useCallback(async () => {
     setStatus("busy");
@@ -184,15 +188,18 @@ export default function App() {
   }
 
   const watchedIds = new Set(watch.map((item) => item.id));
-  const visible = pickTokens(tab, {
-    radar,
-    boosts,
-    trending,
-    watch,
-    searchHits,
-    scanned,
-    query,
-  });
+  const visible = sortTokens(
+    pickTokens(tab, {
+      radar,
+      boosts,
+      trending,
+      watch,
+      searchHits,
+      scanned,
+      query,
+    }),
+    sortMode,
+  );
 
   return (
     <div className="app">
@@ -201,7 +208,7 @@ export default function App() {
           <div className="logo">XR</div>
           <div>
             <h1>XMeme Radar</h1>
-            <p>Twitter / X memecoin monitor — rug checks plus tweet attraction (likes, RTs, views).</p>
+            <p>Live listed coins only — new launches and already-trading memes. Age is on every card.</p>
           </div>
         </div>
         <form className="search-wrap" onSubmit={onSearch}>
@@ -234,6 +241,10 @@ export default function App() {
               <option value="bsc">BSC</option>
               <option value="ethereum">Ethereum</option>
             </select>
+            <select value={sortMode} onChange={(event) => setSortMode(event.target.value as "newest" | "hype")}>
+              <option value="newest">Newest first</option>
+              <option value="hype">Hottest first</option>
+            </select>
           </div>
         </form>
       </header>
@@ -241,10 +252,10 @@ export default function App() {
       <div className="banner">
         <h2>What this tracks</h2>
         <p>
-          Paste an x.com status link in the CA scanner to score tweet attraction (likes, retweets,
-          quotes, views, follower reach). Token cards also show a market <b>hype</b> badge from
-          volume, pumps, and Dex boosts. Rug check is still on every card. Heuristics only — not
-          financial advice.
+          These are coins that already trade — not unreleased / “about to launch” tokens. Radar is
+          new socials, Boosted is paid attention, Trending can include older memes that are moving
+          now. Each card shows <b>pair age</b> (when the first pool went live). Fresh = under 1h,
+          New = under 24h.
         </p>
       </div>
 
@@ -472,6 +483,16 @@ function pickTokens(
   return bags.radar;
 }
 
+function sortTokens(tokens: TrackedToken[], mode: "newest" | "hype"): TrackedToken[] {
+  const copy = [...tokens];
+  if (mode === "newest") {
+    copy.sort((a, b) => (toMillis(b.pairCreatedAt) ?? 0) - (toMillis(a.pairCreatedAt) ?? 0));
+  } else {
+    copy.sort((a, b) => scoreTokenHype(b).score - scoreTokenHype(a).score);
+  }
+  return copy;
+}
+
 function xUrl(token: TrackedToken): string {
   return token.twitterUrl || liveSearchUrl(tokenSearchQuery(token.symbol, token.tokenAddress));
 }
@@ -497,6 +518,7 @@ function TokenCard({
   const handle = twitterHandle(token.twitterUrl);
   const change = token.change1h ?? token.change24h;
   const hype = scoreTokenHype(token);
+  const ageBucket = coinAgeBucket(token.pairCreatedAt);
   return (
     <article className="card">
       <div className="card-head">
@@ -511,6 +533,9 @@ function TokenCard({
             {token.name} · {token.chainId} · {shortAddress(token.tokenAddress)}
           </div>
         </div>
+        <span className={`badge ${ageBucket}`} title="Age of the main trading pair">
+          {ageBucket === "fresh" ? `new ${coinAgeLabel(token.pairCreatedAt)}` : coinAgeLabel(token.pairCreatedAt)}
+        </span>
         <span className={`badge ${hype.level}`} title="Market hype from volume, pump, and boosts">
           {hype.level}
         </span>
@@ -529,6 +554,10 @@ function TokenCard({
         <div>
           <span>1h</span>
           <b className={change && change < 0 ? "neg" : "pos"}>{pct(change)}</b>
+        </div>
+        <div>
+          <span>Age</span>
+          <b className={ageBucket}>{coinAgeLabel(token.pairCreatedAt)}</b>
         </div>
       </div>
       {rug && (

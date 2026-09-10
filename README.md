@@ -27,6 +27,7 @@ If you want sub-second tweet alerts into Telegram/Discord/bots:
   - Local pair stats: thin liquidity and brand-new pools
 - **Tweet attraction** — paste an `x.com/.../status/ID` link to score likes, RTs, quotes, replies, views, and author followers (`quiet` / `warming` / `hot` / `viral`)
 - **Token hype** — each card gets a market-attraction badge from 24h volume, 1h pump, Dex boosts, and turnover
+- **Coin age** — pair/pool created-at on every card (`just launched`, `12m old`, `5h old`, `3d old`). Sort **Newest first** or **Hottest first**. These are already-trading coins, not unreleased launches.
 
 ## Run
 
