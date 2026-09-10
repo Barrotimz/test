@@ -15,7 +15,7 @@ If you want sub-second tweet alerts into Telegram/Discord/bots:
 
 ## What this app does
 
-- **Launching** — pump.fun bonding-curve coins plus brand-new pools on BNB, Robinhood, Solana, ETH, Base, and the rest of the chain list. A global GeckoTerminal feed covers every supported network; a rotating per-chain scan fills gaps. Re-scans every 4s without wiping the board. Attached X status links auto-load likes, RTs, quotes, replies, views, and followers.
+- **Launching** — not pump.fun only. Native feeds: pump.fun + Bags. Dedicated new-pool scans for **BNB** (Four.meme and other BNB pads) and **Robinhood** every cycle, plus a global Gecko feed for every other chain. Filter by launchpad chip.
 - **Twitter radar** — latest DexScreener token profiles that include an X link
 - **Boosted** — tokens paying for visibility (attention, not quality)
 - **Trending** — GeckoTerminal trending pools (Solana / Base / BSC / Ethereum)

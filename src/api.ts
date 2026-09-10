@@ -1,4 +1,5 @@
 import { geckoNetworkId, normalizeChain } from "./chains";
+import { launchpadFromDex } from "./launchpads";
 import { firstTweetId } from "./extract";
 import { tokenImage, twitterHandle } from "./format";
 import type { DexBoost, DexTokenPair, TrackedToken } from "./types";
@@ -6,6 +7,7 @@ import type { DexBoost, DexTokenPair, TrackedToken } from "./types";
 const DEX = import.meta.env.DEV ? "/dex" : "https://api.dexscreener.com";
 const GECKO = import.meta.env.DEV ? "/gecko" : "https://api.geckoterminal.com";
 const PUMP = import.meta.env.DEV ? "/pump" : "https://frontend-api-v3.pump.fun";
+const BAGS = import.meta.env.DEV ? "/bags" : "https://public-api-v2.bags.fm";
 
 async function getJson<T>(url: string): Promise<T> {
   const response = await fetch(url);
@@ -238,6 +240,7 @@ function geckoToToken(
     sellers1h: pool.attributes.transactions?.h1?.sellers,
     txns24h: txnSum(pool.attributes.transactions?.h24),
     dexId: pool.relationships?.dex?.data?.id,
+    launchpad: launchpadFromDex(pool.relationships?.dex?.data?.id, chainId),
     dexUrl: `https://dexscreener.com/${chainId}/${tokenAddress}`,
     pairCreatedAt: created,
     stage: ageMs != null && ageMs < 30 * 60_000 ? "launching" : "live",
@@ -338,6 +341,7 @@ function pumpToToken(coin: PumpCoin): TrackedToken {
     telegramUrl: pumpSocial(coin.telegram, "telegram"),
     websiteUrl: pumpSocial(coin.website),
     dexUrl: `https://pump.fun/${coin.mint}`,
+    launchpad: "pump.fun",
     pairCreatedAt: coin.created_timestamp,
     replies: coin.reply_count,
     bondingPct: coin.complete ? 100 : bondingPct(coin.real_sol_reserves),
@@ -359,6 +363,51 @@ export async function fetchPumpNewest(limit = 40): Promise<TrackedToken[]> {
     `${PUMP}/coins?offset=0&limit=${limit}&sort=created_timestamp&order=DESC&includeNsfw=false`,
   );
   return coins.map(pumpToToken);
+}
+
+type BagsLaunch = {
+  name?: string;
+  symbol?: string;
+  description?: string;
+  image?: string;
+  tokenMint?: string;
+  status?: string;
+  twitter?: string | null;
+  website?: string | null;
+};
+
+export async function fetchBagsLaunches(): Promise<TrackedToken[]> {
+  try {
+    const data = await getJson<{ response?: BagsLaunch[] }>(`${BAGS}/api/v1/token-launch/feed`);
+    return (data.response ?? []).slice(0, 40).flatMap((item) => {
+      if (!item.tokenMint) return [];
+      const twitter = pumpSocial(item.twitter ?? undefined, "twitter");
+      const tweetId = firstTweetId(twitter, item.description, item.website ?? undefined);
+      const pre = /pre|launch/i.test(item.status ?? "");
+      return [
+        {
+          id: `solana:${item.tokenMint}`,
+          chainId: "solana",
+          tokenAddress: item.tokenMint,
+          name: item.name || item.symbol || shortName(item.tokenMint),
+          symbol: (item.symbol || item.name || "BAGS").replace(/^\$/, ""),
+          description: item.description || undefined,
+          imageUrl: item.image,
+          twitterUrl: twitter,
+          websiteUrl: pumpSocial(item.website ?? undefined),
+          dexUrl: `https://bags.fm/${item.tokenMint}`,
+          tweetUrl: tweetId ? `https://x.com/i/web/status/${tweetId}` : undefined,
+          twitterHandle: twitterHandle(twitter),
+          launchpad: "Bags",
+          stage: pre ? "launching" : "live",
+          seenAt: Date.now(),
+          source: "launch",
+        },
+      ];
+    });
+  } catch {
+    return [];
+  }
 }
 
 export async function fetchPumpHottest(limit = 24): Promise<TrackedToken[]> {

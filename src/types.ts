@@ -72,6 +72,7 @@ export type TrackedToken = {
   sellers1h?: number;
   txns24h?: number;
   dexId?: string;
+  launchpad?: string;
   twitterUrl?: string;
   telegramUrl?: string;
   websiteUrl?: string;

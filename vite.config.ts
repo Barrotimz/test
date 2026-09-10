@@ -40,6 +40,11 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/pump/, ""),
       },
+      "/bags": {
+        target: "https://public-api-v2.bags.fm",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/bags/, ""),
+      },
     },
   },
 });

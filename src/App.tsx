@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
+  fetchBagsLaunches,
   fetchBoosts,
   fetchGeckoGlobal,
   fetchGeckoPools,
@@ -11,6 +12,7 @@ import {
   searchTokens,
 } from "./api";
 import { CHAINS, GECKO_NETWORKS, chainLabel, normalizeChain } from "./chains";
+import { LAUNCHPADS } from "./launchpads";
 import { eventsForNew, mergeLists } from "./merge";
 import {
   enrichTokenSocial,
@@ -22,7 +24,7 @@ import {
   type TweetAttraction,
 } from "./attraction";
 import { checkTokenRug, type RugReport } from "./rug";
-import { extractMentions } from "./extract";
+import { extractMentions, firstTweetId } from "./extract";
 import {
   ageLabel,
   coinAgeBucket,
@@ -40,7 +42,6 @@ import {
   tweetInteractions,
   twitterHandle,
 } from "./format";
-import { firstTweetId } from "./extract";
 import { DEFAULT_KOLS } from "./kols";
 import type { FeedEvent, Kol, TabId, TrackedToken } from "./types";
 
@@ -95,6 +96,7 @@ export default function App() {
   const [sortMode, setSortMode] = useState<"newest" | "hype" | "likes">("newest");
   const [ageFilter, setAgeFilter] = useState<"all" | "fresh" | "bonding">("all");
   const [socialFilter, setSocialFilter] = useState<"all" | "twitter" | "likes">("all");
+  const [padFilter, setPadFilter] = useState<string>("all");
 
   const knownIds = useRef(new Set<string>());
   const cycle = useRef(0);
@@ -159,6 +161,13 @@ export default function App() {
         fetchPumpNewest(48)
           .then((rows) => ingest(rows, setLaunching))
           .catch(() => undefined),
+        fetchBagsLaunches()
+          .then((rows) => ingest(rows, setLaunching))
+          .catch(() => undefined),
+        fetchGeckoPools(tick % 2 === 0 ? "bsc" : "robinhood", "new_pools").then((rows) => {
+          ingest(rows, setLaunching);
+          ingest(rows, setTrending);
+        }),
         fetchGeckoGlobal("new_pools", tick % 2 === 0 ? 1 : 2).then((rows) => {
           ingest(rows, setLaunching);
           ingest(rows, setTrending);
@@ -345,9 +354,10 @@ export default function App() {
       if (ageFilter === "bonding" && token.stage !== "launching") return false;
       if (socialFilter === "twitter" && !token.twitterUrl && !token.twitterHandle) return false;
       if (socialFilter === "likes" && !(token.tweetLikes && token.tweetLikes > 0)) return false;
+      if (padFilter !== "all" && (token.launchpad ?? "") !== padFilter) return false;
       const needle = query.trim().toLowerCase();
       if (!needle || (tab === "radar" && searchHits.length)) return true;
-      const hay = `${token.symbol} ${token.name} ${token.tokenAddress} ${token.chainId} ${token.twitterHandle ?? ""}`.toLowerCase();
+      const hay = `${token.symbol} ${token.name} ${token.tokenAddress} ${token.chainId} ${token.launchpad ?? ""} ${token.twitterHandle ?? ""}`.toLowerCase();
       return hay.includes(needle);
     }),
     sortMode,
@@ -403,10 +413,9 @@ export default function App() {
       <div className="banner">
         <h2>What this tracks</h2>
         <p>
-          Launching watches pump.fun bonding-curve coins and the newest pools across every
-          GeckoTerminal network, including BNB and Robinhood. The board refreshes every 4 seconds
-          and never wipes. When a coin attaches an X post we pull likes, RTs, quotes, replies,
-          views, and total interactions onto the card so you do not have to open Twitter.
+          Not pump.fun only. Launching pulls pump.fun and Bags bonding coins, then new pools on
+          BNB (including Four.meme) and Robinhood every cycle, plus a global feed for every other
+          chain. Filter by launchpad below. Tweet likes land on the card when an X post is attached.
         </p>
       </div>
 
@@ -456,6 +465,25 @@ export default function App() {
         ))}
       </div>
 
+      <div className="chips filters">
+        <button
+          type="button"
+          className={`chip ${padFilter === "all" ? "on" : ""}`}
+          onClick={() => setPadFilter("all")}
+        >
+          All launchpads
+        </button>
+        {LAUNCHPADS.map((pad) => (
+          <button
+            key={pad}
+            type="button"
+            className={`chip ${padFilter === pad ? "on" : ""}`}
+            onClick={() => setPadFilter(pad)}
+          >
+            {pad}
+          </button>
+        ))}
+      </div>
       <div className="chips filters">
         {[
           { id: "all", label: "All ages" },
@@ -632,7 +660,8 @@ export default function App() {
             <>
               <h2>${opened.symbol} details</h2>
               <p>
-                {opened.name} · {chainLabel(opened.chainId)} · {opened.stage ?? "live"} ·{" "}
+                {opened.name} · {chainLabel(opened.chainId)}
+                {opened.launchpad ? ` · ${opened.launchpad}` : ""} · {opened.stage ?? "live"} ·{" "}
                 {coinAgeLabel(opened.pairCreatedAt)}
               </p>
               <div className="metrics">
@@ -1009,7 +1038,8 @@ function TokenCard({
         <div className="grow">
           <div className="sym">${token.symbol}</div>
           <div className="sub">
-            {token.name} · {chainLabel(token.chainId)} · {shortAddress(token.tokenAddress)}
+            {token.name} · {chainLabel(token.chainId)}
+            {token.launchpad ? ` · ${token.launchpad}` : ""} · {shortAddress(token.tokenAddress)}
             {token.livestream ? " · LIVE" : ""}
             {token.stage === "launching" ? " · bonding" : ""}
           </div>
