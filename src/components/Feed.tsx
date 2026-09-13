@@ -8,6 +8,7 @@ type Props = {
   lane: HomeLane;
   onLane: (lane: HomeLane) => void;
   tokenFilter?: string | null;
+  onClearToken?: () => void;
   posts?: Post[];
   onOpenComments: (postId: string) => void;
   onOpenProfile: (traderId: string) => void;
@@ -19,6 +20,7 @@ export function Feed({
   lane,
   onLane,
   tokenFilter,
+  onClearToken,
   posts,
   onOpenComments,
   onOpenProfile,
@@ -39,8 +41,8 @@ export function Feed({
 
   const storyAuthors = useMemo(() => {
     const ids = [...new Set(state.stories.map((story) => story.authorId))];
-    return ["you", ...ids.filter((id) => id !== "you")];
-  }, [state.stories]);
+    return ["you", ...ids.filter((id) => id !== "you" && state.following.includes(id))];
+  }, [state.following, state.stories]);
 
   return (
     <div className="stage">
@@ -51,7 +53,11 @@ export function Feed({
         <button type="button" className={lane === "foryou" && !tokenFilter ? "on" : ""} onClick={() => onLane("foryou")}>
           For You
         </button>
-        {tokenFilter && <button type="button" className="on">${tokenFilter}</button>}
+        {tokenFilter && (
+          <button type="button" className="on" onClick={onClearToken}>
+            ${tokenFilter} ×
+          </button>
+        )}
       </div>
 
       <div className={lane === "following" ? "follow-col" : undefined} style={{ height: "100%" }}>

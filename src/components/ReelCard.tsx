@@ -63,10 +63,9 @@ export function ReelCard({ post, onOpenComments, onOpenProfile, onOpenToken }: P
         <div className="token">${post.token}</div>
       </div>
 
-      <div
-        className="reel-ui"
-        onDoubleClick={() => like(true)}
-      >
+      <div className="tap-layer" onDoubleClick={() => like(true)} />
+
+      <div className="reel-ui">
         <div className="meta">
           <div className="author">
             <button type="button" onClick={() => onOpenProfile(author.id)} aria-label={`Open ${author.handle}`}>

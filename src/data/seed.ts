@@ -333,7 +333,7 @@ export function initialState(): AppState {
     ],
     liked: [],
     bookmarked: [],
-    following: ["ape", "nina"],
+    following: ["ape", "nina", "witch", "sol"],
     seenStories: [],
     onboarded: false,
   };

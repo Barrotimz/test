@@ -115,8 +115,9 @@ export function Create({ onDone }: { onDone: (tab: Tab) => void }) {
         />
       </div>
 
-      <label className="author" style={{ marginBottom: 12 }}>
+      <label className="author" style={{ marginBottom: 12 }} htmlFor="as-story">
         <input
+          id="as-story"
           type="checkbox"
           checked={asStory}
           onChange={(event) => setAsStory(event.target.checked)}

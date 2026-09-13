@@ -69,8 +69,10 @@ export default function App() {
               lane={lane}
               onLane={(next) => {
                 setLane(next);
-                if (next === "foryou") setTokenFilter(null);
+                setTokenFilter(null);
+                setFocusPosts(null);
               }}
+              onClearToken={() => setTokenFilter(null)}
               tokenFilter={tokenFilter}
               posts={focusPosts ?? undefined}
               onOpenComments={setCommentsFor}

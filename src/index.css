@@ -206,16 +206,24 @@ textarea { resize: none; }
   margin-top: 6px;
 }
 
+.tap-layer {
+  position: absolute;
+  inset: 0 72px 0 0;
+  z-index: 1;
+}
+
 .reel-ui {
   position: absolute;
   inset: 0;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  padding: 16px 14px 18px;
+  padding: 16px 72px 18px 14px;
   background: linear-gradient(180deg, #0000 40%, #000a 92%);
   z-index: 2;
+  pointer-events: none;
 }
+.reel-ui .meta { pointer-events: auto; }
 
 .top-lane {
   position: absolute;
@@ -277,6 +285,7 @@ textarea { resize: none; }
   display: grid;
   gap: 16px;
   justify-items: center;
+  z-index: 4;
 }
 .actions button { color: #fff; width: 48px; }
 .actions .count { font-size: 12px; font-weight: 600; margin-top: 3px; }
