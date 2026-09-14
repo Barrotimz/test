@@ -23,10 +23,10 @@ export function formatPnl(pnl?: number): string | null {
 }
 
 export function kindLabel(kind: PostKind): string {
-  if (kind === "win") return "WIN";
-  if (kind === "loss") return "LOSS";
+  if (kind === "win") return "FILL";
+  if (kind === "loss") return "RUG";
   if (kind === "call") return "CALL";
-  return "STORY";
+  return "NOTE";
 }
 
 export function chainLabel(chain: Chain): string {

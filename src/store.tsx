@@ -16,11 +16,13 @@ import type {
   Notice,
   Post,
   PostKind,
+  Receipt,
+  Side,
   StoryItem,
   Trader,
 } from "./types";
 
-const KEY = "pumptok.v1";
+const KEY = "pumptok.v2";
 
 type Action =
   | { type: "onboard"; handle: string; name: string; hue: number }
@@ -28,6 +30,7 @@ type Action =
   | { type: "bookmark"; postId: string }
   | { type: "follow"; traderId: string }
   | { type: "share"; postId: string }
+  | { type: "side"; postId: string; side: Side }
   | { type: "comment"; postId: string; text: string }
   | {
       type: "createPost";
@@ -37,6 +40,8 @@ type Action =
       pnl?: number;
       caption: string;
       theme: number;
+      receipt?: Receipt;
+      call?: { targetPct: number; windowMs: number };
     }
   | { type: "createStory"; caption: string; token?: string; kind: PostKind; pnl?: number; theme: number }
   | { type: "seeStories"; authorId: string }
@@ -52,8 +57,14 @@ function load(): AppState {
     const raw = localStorage.getItem(KEY);
     if (!raw) return initialState();
     const parsed = JSON.parse(raw) as AppState;
-    if (!parsed.you || !Array.isArray(parsed.posts)) return initialState();
-    return { ...initialState(), ...parsed, you: { ...initialState().you, ...parsed.you, you: true } };
+    if (!parsed.you || !Array.isArray(parsed.posts) || !parsed.sided) return initialState();
+    return {
+      ...initialState(),
+      ...parsed,
+      you: { ...initialState().you, ...parsed.you, you: true },
+      sided: parsed.sided ?? {},
+      shareTick: parsed.shareTick ?? 0,
+    };
   } catch {
     return initialState();
   }
@@ -119,13 +130,38 @@ function reducer(state: AppState, action: Action): AppState {
         notices: [
           {
             id: uid("n"),
-            text: "Link copied. Flex it in the group chat.",
+            text: "Receipt link copied. Send it to the group chat.",
             createdAt: Date.now(),
             read: false,
           },
           ...state.notices,
         ],
+        shareTick: state.shareTick + 1,
       };
+    case "side": {
+      const post = state.posts.find((item) => item.id === action.postId);
+      if (!post || post.authorId === "you" || post.kind !== "call") return state;
+      const prev = state.sided[action.postId];
+      const sided = { ...state.sided };
+      let rides = post.rides;
+      let fades = post.fades;
+      if (prev === action.side) {
+        delete sided[action.postId];
+        if (action.side === "ride") rides = Math.max(0, rides - 1);
+        else fades = Math.max(0, fades - 1);
+      } else {
+        if (prev === "ride") rides = Math.max(0, rides - 1);
+        if (prev === "fade") fades = Math.max(0, fades - 1);
+        sided[action.postId] = action.side;
+        if (action.side === "ride") rides += 1;
+        else fades += 1;
+      }
+      return {
+        ...state,
+        sided,
+        posts: state.posts.map((item) => (item.id === action.postId ? { ...item, rides, fades } : item)),
+      };
+    }
     case "comment": {
       const text = action.text.trim();
       if (!text) return state;
@@ -147,6 +183,7 @@ function reducer(state: AppState, action: Action): AppState {
     case "createPost": {
       const token = action.token.replace(/^\$/, "").toUpperCase().slice(0, 12);
       if (!token || !action.caption.trim()) return state;
+      const createdAt = Date.now();
       const post: Post = {
         id: uid("p"),
         authorId: "you",
@@ -159,14 +196,28 @@ function reducer(state: AppState, action: Action): AppState {
         comments: 0,
         bookmarks: 0,
         shares: 0,
-        createdAt: Date.now(),
+        rides: 0,
+        fades: 0,
+        createdAt,
         theme: action.theme,
         sound: "original sound — you",
+        receipt: action.receipt,
+        call:
+          action.kind === "call" && action.call
+            ? {
+                targetPct: action.call.targetPct,
+                expiresAt: createdAt + action.call.windowMs,
+                seed: Math.floor(Math.random() * 20) + 1,
+              }
+            : undefined,
       };
       const notice: Notice = {
         id: uid("n"),
-        text: `Your $${token} ${action.kind} is live on For You.`,
-        createdAt: Date.now(),
+        text:
+          action.kind === "call"
+            ? `Your $${token} call is live. People can ride or fade it.`
+            : `Your $${token} receipt is on the tape.`,
+        createdAt,
         read: false,
       };
       return { ...state, posts: [post, ...state.posts], notices: [notice, ...state.notices] };

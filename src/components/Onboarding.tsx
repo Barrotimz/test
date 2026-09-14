@@ -11,9 +11,12 @@ export function Onboarding() {
 
   return (
     <div className="gate">
-      <p className="muted">TIKTOK / REELS FOR DEGENS</p>
+      <p className="muted">NOT TIKTOK. A LIVE TAPE.</p>
       <h1 className="logo">PUMPTOK</h1>
-      <p>Share the entry, the exit, and the story in between. Wins, rugs, and calls — vertical, fast, and on-chain coded.</p>
+      <p>
+        Drop a trade receipt. If the call is still open, the room rides it or fades it while the clock runs. Your
+        rank is hit rate, not followers.
+      </p>
 
       <div className="field">
         <label htmlFor="handle">Handle</label>
@@ -45,7 +48,7 @@ export function Onboarding() {
         type="button"
         onClick={() => dispatch({ type: "onboard", handle, name, hue })}
       >
-        Enter the feed
+        Step on the tape
       </button>
     </div>
   );

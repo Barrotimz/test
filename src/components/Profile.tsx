@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
 import { formatCount, formatPnl } from "../lib/format";
+import { scoreTrader } from "../lib/tape";
+import { useNow } from "../lib/useNow";
 import { traderById, useStore } from "../store";
 import type { Post } from "../types";
 import { Avatar } from "./Avatar";
@@ -12,8 +14,10 @@ export function Profile({
   onOpenPost: (posts: Post[], startId: string) => void;
 }) {
   const { state, dispatch } = useStore();
+  const now = useNow(4000);
   const trader = traderById(state, traderId);
   const posts = state.posts.filter((post) => post.authorId === traderId);
+  const card = scoreTrader(posts, now);
   const following = traderId !== "you" && state.following.includes(traderId);
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(trader.name);
@@ -36,7 +40,10 @@ export function Profile({
         <Avatar name={trader.name} hue={trader.hue} size="lg" />
         <div>
           <h1 style={{ marginBottom: 0 }}>@{trader.handle}</h1>
-          <div className="muted">{trader.name}{trader.verified ? " · verified degen" : ""}</div>
+          <div className="muted">
+            {trader.name} · <span className="rank">{card.rank}</span>
+            {trader.verified ? " · verified" : ""}
+          </div>
         </div>
         {editing ? (
           <div style={{ width: "100%", display: "grid", gap: 8 }}>
@@ -51,16 +58,16 @@ export function Profile({
         )}
         <div className="stats">
           <div>
-            <b>{posts.length}</b>
-            <span className="muted">reels</span>
+            <b>{card.hitRate}%</b>
+            <span className="muted">hit rate</span>
+          </div>
+          <div>
+            <b>{card.streak}</b>
+            <span className="muted">streak</span>
           </div>
           <div>
             <b>{formatCount(trader.followers)}</b>
-            <span className="muted">followers</span>
-          </div>
-          <div>
-            <b>{formatCount(trader.following)}</b>
-            <span className="muted">following</span>
+            <span className="muted">watchers</span>
           </div>
         </div>
         {traderId === "you" ? (
@@ -79,7 +86,7 @@ export function Profile({
         {traderId === "you" && (
           <div className="chips" style={{ marginTop: 8 }}>
             <button type="button" className={`chip ${shelf === "reels" ? "active" : ""}`} onClick={() => setShelf("reels")}>
-              Your reels
+              Your slips
             </button>
             <button type="button" className={`chip ${shelf === "saved" ? "active" : ""}`} onClick={() => setShelf("saved")}>
               Saved

@@ -12,9 +12,9 @@ export function Inbox() {
   return (
     <div className="page">
       <h1>Inbox</h1>
-      <p className="lede">Likes, trends, and your own posts going live.</p>
+      <p className="lede">Live calls, hits, and receipts landing on the tape.</p>
       <div className="token-row">
-        {state.notices.length === 0 && <p className="muted">Quiet tape. Post a reel and this lights up.</p>}
+        {state.notices.length === 0 && <p className="muted">Quiet tape. Open a call and this lights up.</p>}
         {state.notices.map((notice) => (
           <div className="notice" key={notice.id}>
             <b>{notice.text}</b>

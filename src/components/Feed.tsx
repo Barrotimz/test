@@ -1,4 +1,6 @@
 import { useMemo, useRef } from "react";
+import { isGrave, isLive } from "../lib/tape";
+import { useNow } from "../lib/useNow";
 import { traderById, useStore } from "../store";
 import type { HomeLane, Post } from "../types";
 import { Avatar } from "./Avatar";
@@ -16,6 +18,13 @@ type Props = {
   onOpenStory: (authorId: string) => void;
 };
 
+const LANES: { id: HomeLane; label: string }[] = [
+  { id: "live", label: "Live" },
+  { id: "tape", label: "Tape" },
+  { id: "following", label: "Watch" },
+  { id: "graveyard", label: "R.I.P." },
+];
+
 export function Feed({
   lane,
   onLane,
@@ -28,6 +37,7 @@ export function Feed({
   onOpenStory,
 }: Props) {
   const { state } = useStore();
+  const now = useNow(2000);
   const scroller = useRef<HTMLDivElement>(null);
 
   const list = useMemo(() => {
@@ -36,8 +46,10 @@ export function Feed({
     if (lane === "following") {
       return filtered.filter((post) => post.authorId === "you" || state.following.includes(post.authorId));
     }
+    if (lane === "live") return filtered.filter((post) => isLive(post, now));
+    if (lane === "graveyard") return filtered.filter((post) => isGrave(post, now));
     return filtered;
-  }, [lane, posts, state.following, state.posts, tokenFilter]);
+  }, [lane, now, posts, state.following, state.posts, tokenFilter]);
 
   const storyAuthors = useMemo(() => {
     const ids = [...new Set(state.stories.map((story) => story.authorId))];
@@ -47,12 +59,16 @@ export function Feed({
   return (
     <div className="stage">
       <div className="top-lane">
-        <button type="button" className={lane === "following" ? "on" : ""} onClick={() => onLane("following")}>
-          Following
-        </button>
-        <button type="button" className={lane === "foryou" && !tokenFilter ? "on" : ""} onClick={() => onLane("foryou")}>
-          For You
-        </button>
+        {LANES.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            className={lane === item.id ? "on" : ""}
+            onClick={() => onLane(item.id)}
+          >
+            {item.label}
+          </button>
+        ))}
         {tokenFilter && (
           <button type="button" className="on" onClick={onClearToken}>
             ${tokenFilter} ×
@@ -81,8 +97,8 @@ export function Feed({
         {list.length === 0 ? (
           <div className="empty">
             <div>
-              <p>No reels here yet.</p>
-              <p>Follow traders or post your first bag story.</p>
+              <p>{lane === "live" ? "No live calls right now." : "No receipts here yet."}</p>
+              <p>Drop a call or watch someone on the tape.</p>
             </div>
           </div>
         ) : (

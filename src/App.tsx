@@ -14,7 +14,7 @@ import type { HomeLane, Post, Tab } from "./types";
 export default function App() {
   const { state } = useStore();
   const [tab, setTab] = useState<Tab>("home");
-  const [lane, setLane] = useState<HomeLane>("foryou");
+  const [lane, setLane] = useState<HomeLane>("live");
   const [commentsFor, setCommentsFor] = useState<string | null>(null);
   const [profileId, setProfileId] = useState("you");
   const [tokenFilter, setTokenFilter] = useState<string | null>(null);
@@ -22,18 +22,17 @@ export default function App() {
   const [focusPosts, setFocusPosts] = useState<Post[] | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const unread = state.notices.filter((notice) => !notice.read).length;
-  const latestNotice = state.notices[0];
 
   useEffect(() => {
-    if (!latestNotice?.text.includes("Link copied")) return;
-    setToast(latestNotice.id);
+    if (!state.shareTick) return;
+    setToast(`share-${state.shareTick}`);
     const timer = window.setTimeout(() => setToast(null), 1800);
     return () => window.clearTimeout(timer);
-  }, [latestNotice?.id, latestNotice?.text]);
+  }, [state.shareTick]);
 
   function goHome() {
     setTab("home");
-    setLane("foryou");
+    setLane("live");
     setTokenFilter(null);
     setFocusPosts(null);
   }
@@ -46,7 +45,7 @@ export default function App() {
   function openToken(token: string) {
     setTokenFilter(token);
     setFocusPosts(null);
-    setLane("foryou");
+    setLane("tape");
     setTab("home");
   }
 
@@ -82,7 +81,16 @@ export default function App() {
             />
           )}
           {tab === "explore" && <Explore onOpenToken={openToken} onOpenProfile={openProfile} />}
-          {tab === "create" && <Create onDone={goHome} />}
+          {tab === "create" && (
+            <Create
+              onDone={(nextLane) => {
+                setTab("home");
+                setLane(nextLane);
+                setTokenFilter(null);
+                setFocusPosts(null);
+              }}
+            />
+          )}
           {tab === "inbox" && <Inbox />}
           {tab === "profile" && (
             <Profile
@@ -91,7 +99,7 @@ export default function App() {
                 const ordered = [...posts.filter((post) => post.id === startId), ...posts.filter((post) => post.id !== startId)];
                 setFocusPosts(ordered);
                 setTokenFilter(null);
-                setLane("foryou");
+                setLane("tape");
                 setTab("home");
               }}
             />

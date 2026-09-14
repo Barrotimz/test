@@ -1,7 +1,9 @@
 export type Chain = "sol" | "eth" | "base" | "bsc";
 export type PostKind = "win" | "loss" | "call" | "story";
 export type Tab = "home" | "explore" | "create" | "inbox" | "profile";
-export type HomeLane = "foryou" | "following";
+export type HomeLane = "live" | "tape" | "following" | "graveyard";
+export type Side = "ride" | "fade";
+export type Rank = "Shrimp" | "Crab" | "Ape" | "Wizard" | "Deity";
 
 export type Trader = {
   id: string;
@@ -13,6 +15,19 @@ export type Trader = {
   following: number;
   verified?: boolean;
   you?: boolean;
+};
+
+export type Receipt = {
+  entryMc: string;
+  size: string;
+  hold: string;
+  stillIn?: boolean;
+};
+
+export type CallSpec = {
+  targetPct: number;
+  expiresAt: number;
+  seed: number;
 };
 
 export type Post = {
@@ -27,9 +42,13 @@ export type Post = {
   comments: number;
   bookmarks: number;
   shares: number;
+  rides: number;
+  fades: number;
   createdAt: number;
   theme: number;
   sound: string;
+  receipt?: Receipt;
+  call?: CallSpec;
 };
 
 export type StoryItem = {
@@ -69,5 +88,7 @@ export type AppState = {
   bookmarked: string[];
   following: string[];
   seenStories: string[];
+  sided: Record<string, Side>;
+  shareTick: number;
   onboarded: boolean;
 };
