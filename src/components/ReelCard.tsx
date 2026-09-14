@@ -39,7 +39,7 @@ export function ReelCard({ post, onOpenComments, onOpenProfile, onOpenToken }: P
   }
 
   function share() {
-    const text = `$${post.token} receipt on Pumptok — ${post.caption}`;
+    const text = `$${post.token} slip on Blotter — ${post.caption}`;
     void navigator.clipboard?.writeText(text).catch(() => undefined);
     dispatch({ type: "share", postId: post.id });
   }

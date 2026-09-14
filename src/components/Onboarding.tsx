@@ -11,11 +11,11 @@ export function Onboarding() {
 
   return (
     <div className="gate">
-      <p className="muted">NOT TIKTOK. A LIVE TAPE.</p>
-      <h1 className="logo">PUMPTOK</h1>
+      <p className="muted">THE BOOK WHERE FILLS GET WRITTEN</p>
+      <h1 className="logo">BLOTTER</h1>
       <p>
-        Drop a trade receipt. If the call is still open, the room rides it or fades it while the clock runs. Your
-        rank is hit rate, not followers.
+        Not a Reels clone. A trading blotter you can flash. Drop a slip, open a timed call, and let the pit ride or
+        fade it. Your card is hit rate — not clout.
       </p>
 
       <div className="field">
@@ -48,7 +48,7 @@ export function Onboarding() {
         type="button"
         onClick={() => dispatch({ type: "onboard", handle, name, hue })}
       >
-        Step on the tape
+        Open your blotter
       </button>
     </div>
   );

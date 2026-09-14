@@ -72,6 +72,36 @@ export function scoreTrader(posts: Post[], now = Date.now()) {
   return { hits, misses, hitRate, streak, rank, score, total };
 }
 
+export function blotterCard(posts: Post[], now = Date.now()) {
+  const score = scoreTrader(posts, now);
+  let best: Post | undefined;
+  let bestPnl = -Infinity;
+  let rides = 0;
+  for (const post of posts) {
+    rides += post.rides;
+    const pnl = displayPnl(post, now);
+    if (pnl !== undefined && pnl > bestPnl) {
+      bestPnl = pnl;
+      best = post;
+    }
+  }
+  return {
+    ...score,
+    best,
+    bestPnl: Number.isFinite(bestPnl) ? bestPnl : undefined,
+    rides,
+    live: posts.filter((post) => isLive(post, now)).length,
+    graves: posts.filter((post) => isGrave(post, now)).length,
+    slips: posts.length,
+  };
+}
+
+export function badgeId(handle: string): string {
+  let n = 0;
+  for (const char of handle) n = (n * 33 + char.charCodeAt(0)) >>> 0;
+  return `BLT-${String((n % 90000) + 10000)}`;
+}
+
 function wasHit(post: Post, now: number): boolean {
   if (post.kind === "win") return true;
   if (post.kind === "loss") return false;

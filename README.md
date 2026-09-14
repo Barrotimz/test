@@ -1,8 +1,8 @@
-# Pumptok
+# Blotter
 
-Not another TikTok clone. Pumptok is a **live tape for meme-coin traders**.
+A **trading blotter** for meme-coin traders — not a TikTok clone.
 
-Every post is a **trade receipt** (entry MC, size, hold). If you open a **call**, it gets a clock and a ticking mark. Everyone else **rides or fades** it. Your rank is **hit rate and streak**, not follower count. Rugs go to the **R.I.P.** lane.
+Every fill is a slip. Live calls get a clock. The pit **rides or fades**. Your **profile is a blotter card**: rank, hit rate, best print, and the slips that earned them.
 
 ## Run it
 
@@ -11,15 +11,14 @@ npm install
 npm run dev
 ```
 
-Open the printed local URL (default `http://localhost:5173`).
+Open `http://localhost:5173`.
 
 ## What you can do
 
 - Land on **Live** and ride or fade an open call
-- Scroll the **Tape** of locked fills
-- Watch people you follow, plus 24h stories
-- Visit **R.I.P.** for rugs and missed calls
-- Drop your own receipt or open a timed call from **+**
-- Check ranks on **Explore** and profiles
+- Scroll the **Tape**, **Watch** people, visit **R.I.P.**
+- Open anyone’s **blotter card** (rank, streak, best print, slip grid)
+- Copy a card to flash in the group chat
+- Drop your own slip or timed call from **+**
 
-This first version is client-only. State lives in `localStorage`. Live prices are a deterministic tape on each call, not a brokerage feed.
+Client-only demo. State is in `localStorage`. The live tape is deterministic, not a brokerage feed.

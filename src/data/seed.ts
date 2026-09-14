@@ -11,7 +11,7 @@ export const YOU: Trader = {
   id: "you",
   handle: "you",
   name: "You",
-  bio: "New on the tape. Here to ride, fade, and post receipts.",
+  bio: "New blotter. Here to ride, fade, and write fills.",
   hue: 88,
   followers: 12,
   following: 4,
@@ -402,7 +402,7 @@ export function initialState(): AppState {
       },
       {
         id: "n2",
-        text: "Your rank starts at Shrimp. Hits move you up, not followers.",
+        text: "Your blotter starts at Shrimp. Hits move the card, not followers.",
         createdAt: now - 6 * hour,
         read: false,
       },

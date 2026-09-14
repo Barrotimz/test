@@ -45,7 +45,7 @@ await step("onboarding", async () => {
   await page.getByLabel("Handle").fill("moonbag");
   await page.getByLabel("Display name").fill("Moonbag");
   await page.getByRole("button", { name: "Avatar color 312" }).click();
-  await page.getByRole("button", { name: "Step on the tape" }).click();
+  await page.getByRole("button", { name: "Open your blotter" }).click();
   await page.locator(".top-lane").getByRole("button", { name: "Live" }).waitFor();
   await page.getByText("LIVE CALL").first().waitFor();
 });
@@ -62,6 +62,20 @@ await step("ride and fade", async () => {
   if (!(await fade.evaluate((el) => el.classList.contains("on")))) throw new Error("fade did not lock in");
 });
 await shot("03-faded-call");
+
+await step("trader blotter card", async () => {
+  await page.locator(".reel").first().getByRole("button", { name: "@chartwitch" }).click();
+  await page.locator(".id-card").waitFor();
+  await page.getByRole("heading", { name: "@chartwitch" }).waitFor();
+  await page.getByText("BLOTTER", { exact: true }).waitFor();
+  await page.getByText("Best print").waitFor();
+  await page.getByText("hit rate").waitFor();
+  await shot("03b-trader-card");
+  await page.getByRole("button", { name: "Copy card" }).click();
+  await page.getByText("Copied to clipboard").waitFor();
+  await page.getByRole("button", { name: "Home" }).click();
+  await page.locator(".reel").first().waitFor();
+});
 
 await step("comment", async () => {
   await page.locator(".actions").first().getByRole("button", { name: "Comments" }).click();
@@ -111,7 +125,7 @@ await shot("08-graveyard");
 
 await step("explore arena", async () => {
   await page.getByRole("button", { name: "Explore" }).click();
-  await page.getByRole("heading", { name: "Arena" }).waitFor();
+  await page.getByRole("heading", { name: "The pit" }).waitFor();
   await page.getByPlaceholder("Search $WIF or @handle").fill("WIF");
   await page.locator(".call-card, .token-card", { hasText: "$WIF" }).first().waitFor();
   await shot("09-explore");
@@ -133,8 +147,10 @@ await shot("11-your-live-call");
 await step("profile rank", async () => {
   await page.getByRole("button", { name: "Profile" }).click();
   await page.getByText("@moonbag").waitFor();
+  await page.locator(".id-card").waitFor();
   await page.getByText("Shrimp").waitFor();
   await page.getByText("hit rate").waitFor();
+  await page.getByRole("button", { name: "Edit card" }).waitFor();
   await shot("12-profile");
 });
 

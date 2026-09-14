@@ -12,7 +12,7 @@ export function Inbox() {
   return (
     <div className="page">
       <h1>Inbox</h1>
-      <p className="lede">Live calls, hits, and receipts landing on the tape.</p>
+      <p className="lede">Live calls, copied cards, and slips landing on the tape.</p>
       <div className="token-row">
         {state.notices.length === 0 && <p className="muted">Quiet tape. Open a call and this lights up.</p>}
         {state.notices.map((notice) => (

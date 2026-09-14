@@ -22,7 +22,7 @@ import type {
   Trader,
 } from "./types";
 
-const KEY = "pumptok.v2";
+const KEY = "blotter.v1";
 
 type Action =
   | { type: "onboard"; handle: string; name: string; hue: number }
@@ -46,6 +46,7 @@ type Action =
   | { type: "createStory"; caption: string; token?: string; kind: PostKind; pnl?: number; theme: number }
   | { type: "seeStories"; authorId: string }
   | { type: "readNotices" }
+  | { type: "flash"; text: string }
   | { type: "updateYou"; patch: Partial<Pick<Trader, "name" | "bio" | "handle" | "hue">> };
 
 function persist(state: AppState) {
@@ -130,7 +131,7 @@ function reducer(state: AppState, action: Action): AppState {
         notices: [
           {
             id: uid("n"),
-            text: "Receipt link copied. Send it to the group chat.",
+            text: "Slip copied. Flash it in the group chat.",
             createdAt: Date.now(),
             read: false,
           },
@@ -245,6 +246,15 @@ function reducer(state: AppState, action: Action): AppState {
         : { ...state, seenStories: [...state.seenStories, action.authorId] };
     case "readNotices":
       return { ...state, notices: state.notices.map((notice) => ({ ...notice, read: true })) };
+    case "flash":
+      return {
+        ...state,
+        shareTick: state.shareTick + 1,
+        notices: [
+          { id: uid("n"), text: action.text, createdAt: Date.now(), read: false },
+          ...state.notices,
+        ],
+      };
     case "updateYou":
       return { ...state, you: { ...state.you, ...action.patch } };
     default:

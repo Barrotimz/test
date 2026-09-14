@@ -48,8 +48,8 @@ export function Explore({
 
   return (
     <div className="page">
-      <h1>Arena</h1>
-      <p className="lede">Open calls first. Rank is hit rate, not clout.</p>
+      <h1>The pit</h1>
+      <p className="lede">Open calls first. Open a blotter to see the card behind the tape.</p>
       <input value={q} onChange={(event) => setQ(event.target.value)} placeholder="Search $WIF or @handle" />
 
       <h3 style={{ margin: "22px 0 10px" }}>Live calls</h3>
