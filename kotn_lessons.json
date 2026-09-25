@@ -41,7 +41,8 @@
       "Expensive ice chests Sun 23 Aug 2026: search hopper / roadie / tundra / yeti / igloo, not cooler alone (the PC-cooler skip hides ice chests). Do not skip yeti titles that contain cooler — that hid Hopper Flip 18, Roadie 24, and Tundra 65. find=rtic matches the letters inside vertical (Keter sheds, filing cabinets, sausage stuffers). find=orca is Happy Nappers. find=canyon is GMC Canyon fog lights. This week HV has two Roadie 24 2.0 Ultramarine Violet, one Hopper Flip 18 navy sealed, and a beat Matco-sticker Tundra 65. Zero RTIC/Orca/Canyon/Pelican ice chests. OS is only cheap Igloo/Coleman lunch bags.",
       "Wed 19 Aug afternoon: still no loose GPU/AM5/DDR5/PSU/case. New HV monitors: ASUS PG27AQWP-W is the 540/720 dual-mode OLED (same class as 27GX790B) but this copy has light lines across the whole screen — skip as a keep. Samsung S27FG810SN is Odyssey G81SF 27\" 4K 240Hz QD-OLED, open/appears new. UGREEN DXP4800 Plus is a diskless 4-bay NAS (Pentium Gold 8505 / 8GB / 10GbE), street ~$555–$860.",
       "Stand-up freezers Sat 5 Sep 2026 (HV 1106 / OS 1105): search upright freezer / fffu / garage ready, then crawl appliances cat 20. find=upright is vacuums, rollators, steamers. find=freezer is 12V Euhomy, mini fridge combos, Ziploc bags on OS, and chest freezers. Only one true upright this scan: HV 4178428 Frigidaire FFFU13F2VV 13 cu ft garage-ready, power-tested, exterior dents. OS has zero freezers besides bags. Chests this week: Hisense FC88D6CWD 8.8 and two dented Arctic King 5.0. Midea MRT21D3BST is a 21 cu ft fridge with a top freezer, not a stand-up freezer.",
-      "Construction / workwear Fri 25 Sep 2026 (HV 1126 / OS 1125): search carhartt / pioneer / dickies then crawl apparel cat 1. find=wrangler is Jeep shocks, luggage, and western shirts. find=construction is LEGO, toy machines, sleds. find=walls is tent sidewalls. find=detroit is brake calipers. find=wolverine is comics. find=mechanic is rolling stools and tool sets. find=bib is baby. OS this week has Carhartt pants/hoodies and Pioneer hi-vis, zero Dickies, zero coveralls, zero men's Carhartt jackets. HV has a sealed duck sherpa vest and a women's sherpa jacket."
+      "Construction / workwear Fri 25 Sep 2026 (HV 1126 / OS 1125): search carhartt / pioneer / dickies then crawl apparel cat 1. find=wrangler is Jeep shocks, luggage, and western shirts. find=construction is LEGO, toy machines, sleds. find=walls is tent sidewalls. find=detroit is brake calipers. find=wolverine is comics. find=mechanic is rolling stools and tool sets. find=bib is baby. OS this week has Carhartt pants/hoodies and Pioneer hi-vis, zero Dickies, zero coveralls, zero men's Carhartt jackets. HV has a sealed duck sherpa vest and a women's sherpa jacket.",
+      "Hi-vis hoodies Fri 25 Sep 2026: search hi vis / high visibility / pioneer hoodie then hoodie and filter. find=hoodie is Champion tunics, Hurley, Raptors, and hooded litter boxes. find=pioneer is DJ controllers and Pioneer Pet litter. Carhartt brite lime / orange hoodies are regular colours, not CSA reflective. This scan: zero hi-vis hoodies in M or L. Only Pioneer men's safety hoodie 4XL (OS 4243578) and a women's Pioneer fleece 3XL."
     ]
   },
   "categories": {
@@ -142,6 +143,14 @@
     {
       "query": "construction",
       "skip_title_re": "lego|block puzzle|advent calendar|snowboard|sled|deadpool|toy|diecast"
+    },
+    {
+      "query": "hoodie",
+      "skip_title_re": "litter box|catit"
+    },
+    {
+      "query": "pioneer",
+      "skip_title_re": "dj |ddj|cd reciever|cd receiver|pet products|cat litter"
     },
     {
       "query": "stream deck",
