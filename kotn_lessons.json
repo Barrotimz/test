@@ -1,10 +1,10 @@
 {
-  "updated": "2026-09-05",
+  "updated": "2026-09-25",
   "auctions": {
-    "hv": 1106,
-    "os": 1105,
-    "pallet": 1107,
-    "halloween": 1108
+    "hv": 1126,
+    "os": 1125,
+    "pallet": 1127,
+    "halloween": 1128
   },
   "priority": "hv",
   "search": {
@@ -12,7 +12,7 @@
     "broken_params": ["q", "search"],
     "notes": [
       "The search box sets find= then redirects to /auctions/all and strips category and page.",
-      "Stay on one auction by editing the URL: /auctions/1106?find=TERM (HV) and /auctions/1105?find=TERM (OS). IDs change each week; read the homepage. Week of Sun 6 Sep 2026: HV 1106, OS 1105, pallet 1107, Halloween blowout 1108 (Mon 7 Sep).",
+      "Stay on one auction by editing the URL: /auctions/1126?find=TERM (HV) and /auctions/1125?find=TERM (OS). IDs change each week; read the homepage. Week of Sun 27 Sep 2026: HV 1126, OS 1125, pallet 1127, Halloween blowout 1128 (Mon 28 Sep).",
       "Two words are AND. Quotes return zero results. SKUs are not indexed.",
       "Index is title-only (plus model in the title). Descriptions and SKUs are not searchable.",
       "JS tiles hide bids; scrape listing pages for var initialBids. /listings/refresh is login-walled.",
@@ -40,7 +40,8 @@
       "Cat litter boxes: find=litter then petsafe / omega paw / iris. find=litter also hits glitter, table runners, chin splitters, headphones with splitter. find=litter robot is zero this week (no Whisker). find=whisker is a milk frother. Pets category 11. Sat 22 Aug freeze: HV has PetSafe ScoopFree Smart/Pro/Plus plus many no-name 90L app boxes. OS has Omega Paw, IRIS, Amazon Basics, stainless twins, and a sealed 3pk ScoopFree trays.",
       "Expensive ice chests Sun 23 Aug 2026: search hopper / roadie / tundra / yeti / igloo, not cooler alone (the PC-cooler skip hides ice chests). Do not skip yeti titles that contain cooler — that hid Hopper Flip 18, Roadie 24, and Tundra 65. find=rtic matches the letters inside vertical (Keter sheds, filing cabinets, sausage stuffers). find=orca is Happy Nappers. find=canyon is GMC Canyon fog lights. This week HV has two Roadie 24 2.0 Ultramarine Violet, one Hopper Flip 18 navy sealed, and a beat Matco-sticker Tundra 65. Zero RTIC/Orca/Canyon/Pelican ice chests. OS is only cheap Igloo/Coleman lunch bags.",
       "Wed 19 Aug afternoon: still no loose GPU/AM5/DDR5/PSU/case. New HV monitors: ASUS PG27AQWP-W is the 540/720 dual-mode OLED (same class as 27GX790B) but this copy has light lines across the whole screen — skip as a keep. Samsung S27FG810SN is Odyssey G81SF 27\" 4K 240Hz QD-OLED, open/appears new. UGREEN DXP4800 Plus is a diskless 4-bay NAS (Pentium Gold 8505 / 8GB / 10GbE), street ~$555–$860.",
-      "Stand-up freezers Sat 5 Sep 2026 (HV 1106 / OS 1105): search upright freezer / fffu / garage ready, then crawl appliances cat 20. find=upright is vacuums, rollators, steamers. find=freezer is 12V Euhomy, mini fridge combos, Ziploc bags on OS, and chest freezers. Only one true upright this scan: HV 4178428 Frigidaire FFFU13F2VV 13 cu ft garage-ready, power-tested, exterior dents. OS has zero freezers besides bags. Chests this week: Hisense FC88D6CWD 8.8 and two dented Arctic King 5.0. Midea MRT21D3BST is a 21 cu ft fridge with a top freezer, not a stand-up freezer."
+      "Stand-up freezers Sat 5 Sep 2026 (HV 1106 / OS 1105): search upright freezer / fffu / garage ready, then crawl appliances cat 20. find=upright is vacuums, rollators, steamers. find=freezer is 12V Euhomy, mini fridge combos, Ziploc bags on OS, and chest freezers. Only one true upright this scan: HV 4178428 Frigidaire FFFU13F2VV 13 cu ft garage-ready, power-tested, exterior dents. OS has zero freezers besides bags. Chests this week: Hisense FC88D6CWD 8.8 and two dented Arctic King 5.0. Midea MRT21D3BST is a 21 cu ft fridge with a top freezer, not a stand-up freezer.",
+      "Construction / workwear Fri 25 Sep 2026 (HV 1126 / OS 1125): search carhartt / pioneer / dickies then crawl apparel cat 1. find=wrangler is Jeep shocks, luggage, and western shirts. find=construction is LEGO, toy machines, sleds. find=walls is tent sidewalls. find=detroit is brake calipers. find=wolverine is comics. find=mechanic is rolling stools and tool sets. find=bib is baby. OS this week has Carhartt pants/hoodies and Pioneer hi-vis, zero Dickies, zero coveralls, zero men's Carhartt jackets. HV has a sealed duck sherpa vest and a women's sherpa jacket."
     ]
   },
   "categories": {
@@ -133,6 +134,14 @@
     {
       "query": "freezer",
       "skip_title_re": "ziploc|duraglass|bag|12v|euhomy|portable|car fridge"
+    },
+    {
+      "query": "wrangler",
+      "skip_title_re": "jeep|carry-on|spinner|breather|shock"
+    },
+    {
+      "query": "construction",
+      "skip_title_re": "lego|block puzzle|advent calendar|snowboard|sled|deadpool|toy|diecast"
     },
     {
       "query": "stream deck",
