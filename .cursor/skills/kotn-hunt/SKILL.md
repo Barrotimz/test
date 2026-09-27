@@ -25,7 +25,7 @@ https://kotnauction.com/auctions/1126?find=dewalt
 https://kotnauction.com/auctions/1125?find=dewalt
 ```
 
-Week of Sunday 27 Sep 2026: **HV 1126**, **OS 1125**, pallet 1127, Halloween 1128. Confirm IDs on the homepage each week.
+Week of Sunday 27 Sep 2026: **HV 1126**, **OS 1125**, pallet 1127, Halloween 1128, Monday OS **1129**. Confirm IDs on the homepage each week. When they say all tabs, search every live auction ID on the homepage.
 
 Add filters back by hand:
 

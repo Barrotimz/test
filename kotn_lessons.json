@@ -1,10 +1,11 @@
 {
-  "updated": "2026-09-25",
+  "updated": "2026-09-27",
   "auctions": {
     "hv": 1126,
     "os": 1125,
     "pallet": 1127,
-    "halloween": 1128
+    "halloween": 1128,
+    "os_monday": 1129
   },
   "priority": "hv",
   "search": {
@@ -12,7 +13,7 @@
     "broken_params": ["q", "search"],
     "notes": [
       "The search box sets find= then redirects to /auctions/all and strips category and page.",
-      "Stay on one auction by editing the URL: /auctions/1126?find=TERM (HV) and /auctions/1125?find=TERM (OS). IDs change each week; read the homepage. Week of Sun 27 Sep 2026: HV 1126, OS 1125, pallet 1127, Halloween blowout 1128 (Mon 28 Sep).",
+      "Stay on one auction by editing the URL: /auctions/1126?find=TERM (HV) and /auctions/1125?find=TERM (OS). IDs change each week; read the homepage. Week of Sun 27 Sep 2026: HV 1126, OS 1125, pallet 1127, Halloween 1128 (Mon 28 Sep), Monday Overstock 1129.",
       "Two words are AND. Quotes return zero results. SKUs are not indexed.",
       "Index is title-only (plus model in the title). Descriptions and SKUs are not searchable.",
       "JS tiles hide bids; scrape listing pages for var initialBids. /listings/refresh is login-walled.",
@@ -42,7 +43,8 @@
       "Wed 19 Aug afternoon: still no loose GPU/AM5/DDR5/PSU/case. New HV monitors: ASUS PG27AQWP-W is the 540/720 dual-mode OLED (same class as 27GX790B) but this copy has light lines across the whole screen — skip as a keep. Samsung S27FG810SN is Odyssey G81SF 27\" 4K 240Hz QD-OLED, open/appears new. UGREEN DXP4800 Plus is a diskless 4-bay NAS (Pentium Gold 8505 / 8GB / 10GbE), street ~$555–$860.",
       "Stand-up freezers Sat 5 Sep 2026 (HV 1106 / OS 1105): search upright freezer / fffu / garage ready, then crawl appliances cat 20. find=upright is vacuums, rollators, steamers. find=freezer is 12V Euhomy, mini fridge combos, Ziploc bags on OS, and chest freezers. Only one true upright this scan: HV 4178428 Frigidaire FFFU13F2VV 13 cu ft garage-ready, power-tested, exterior dents. OS has zero freezers besides bags. Chests this week: Hisense FC88D6CWD 8.8 and two dented Arctic King 5.0. Midea MRT21D3BST is a 21 cu ft fridge with a top freezer, not a stand-up freezer.",
       "Construction / workwear Fri 25 Sep 2026 (HV 1126 / OS 1125): search carhartt / pioneer / dickies then crawl apparel cat 1. find=wrangler is Jeep shocks, luggage, and western shirts. find=construction is LEGO, toy machines, sleds. find=walls is tent sidewalls. find=detroit is brake calipers. find=wolverine is comics. find=mechanic is rolling stools and tool sets. find=bib is baby. OS this week has Carhartt pants/hoodies and Pioneer hi-vis, zero Dickies, zero coveralls, zero men's Carhartt jackets. HV has a sealed duck sherpa vest and a women's sherpa jacket.",
-      "Hi-vis hoodies Fri 25 Sep 2026: search hi vis / high visibility / pioneer hoodie then hoodie and filter. find=hoodie is Champion tunics, Hurley, Raptors, and hooded litter boxes. find=pioneer is DJ controllers and Pioneer Pet litter. Carhartt brite lime / orange hoodies are regular colours, not CSA reflective. This scan: zero hi-vis hoodies in M or L. Only Pioneer men's safety hoodie 4XL (OS 4243578) and a women's Pioneer fleece 3XL."
+      "Hi-vis hoodies Fri 25 Sep 2026: search hi vis / high visibility / pioneer hoodie then hoodie and filter. find=hoodie is Champion tunics, Hurley, Raptors, and hooded litter boxes. find=pioneer is DJ controllers and Pioneer Pet litter. Carhartt brite lime / orange hoodies are regular colours, not CSA reflective. This scan: zero hi-vis hoodies in M or L. Only Pioneer men's safety hoodie 4XL (OS 4243578) and a women's Pioneer fleece 3XL.",
+      "All-tabs Sun 27 Sep 2026 ~5pm Barrie: today's OS 1125 apparel already ended (only Ziploc left). Work clothes moved to Monday OS 1129 plus new HV Carhartt (Detroit 4XL stained, insulated bibs XL short, sherpa field jacket Small, Arctic vest 2XL, sherpa vest L). Pallet 1127 and Halloween 1128 have zero workwear. Zero stand-up freezers on any tab — only fridge/freezer combos and minis. When they say all tabs, also search 1127/1128/1129."
     ]
   },
   "categories": {
