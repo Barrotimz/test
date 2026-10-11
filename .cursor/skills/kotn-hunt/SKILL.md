@@ -9,7 +9,7 @@ Huronia (Barrie, ON). Pickup Tue–Sat 9am–5pm after Sunday close. Listings ad
 
 ## Always
 
-1. Search **High-Value first (1126 this week)**, then **Overstock (1125)**. Never one auction alone when they say "any X". Confirm IDs on the homepage.
+1. Search **High-Value first (1384 this week)**, then **Overstock (1383)**. Never one auction alone when they say "any X". Confirm IDs on the homepage.
 2. Use `?find=` — **not** `q=` or `search=` (those do not filter).
 3. Prefer **model numbers** over brand words. Title-only index. For PC parts do not search `gpu` / `cooler` / `processor` / `psu` alone. For peripherals do not search `yeti` / `stream deck` / `webcam` / `headset` alone.
 4. Quote retail CAD, current bid, suggested max, condition notes.
@@ -21,11 +21,11 @@ Huronia (Barrie, ON). Pickup Tue–Sat 9am–5pm after Sunday close. Listings ad
 Stay on one auction (the site search box will not — it jumps to `/auctions/all` and strips category):
 
 ```
-https://kotnauction.com/auctions/1126?find=dewalt
-https://kotnauction.com/auctions/1125?find=dewalt
+https://kotnauction.com/auctions/1384?find=dewalt
+https://kotnauction.com/auctions/1383?find=dewalt
 ```
 
-Week of Sunday 27 Sep 2026: **HV 1126**, **OS 1125**, pallet 1127, Halloween 1128, Monday OS **1129**. Confirm IDs on the homepage each week. When they say all tabs, search every live auction ID on the homepage.
+Week of Sunday 11 Oct 2026: **HV 1384**, **OS 1383**, pallet 1385, Halloween 1386, Monday OS **1387**. Confirm IDs on the homepage each week. When they say all tabs, search every live auction ID on the homepage.
 
 Add filters back by hand:
 
@@ -62,9 +62,9 @@ HV rows print first. Script applies skip patterns from `kotn_lessons.json`.
 
 ## Auction mechanics
 
-- Overstock 1125: ~1:00–6:30pm Sunday, **$1** increment
-- High-Value 1126: from 6:30pm Sunday, **$5** increment
-- Pallet 1127 exists; skip unless asked. Halloween blowout 1128 is Monday.
+- Overstock 1383: ~1:00–6:30pm Sunday, **$1** increment
+- High-Value 1384: from 6:30pm Sunday, **$5** increment
+- Pallet 1385 exists; skip unless asked. Halloween blowout 1386 and Monday OS 1387 are Monday.
 
 ## Watchlist and bidding help
 

@@ -14,7 +14,7 @@ import urllib.request
 from pathlib import Path
 
 UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36"
-HV, OS = 1126, 1125  # week of Sun 2026-09-27; pallet 1127; halloween 1128
+HV, OS = 1384, 1383  # week of Sun 2026-10-11; pallet 1385; halloween 1386; Mon OS 1387
 ROOT = Path(__file__).resolve().parent
 LESSONS_PATH = ROOT / "kotn_lessons.json"
 
