@@ -46,7 +46,8 @@
       "Hi-vis hoodies Fri 25 Sep 2026: search hi vis / high visibility / pioneer hoodie then hoodie and filter. find=hoodie is Champion tunics, Hurley, Raptors, and hooded litter boxes. find=pioneer is DJ controllers and Pioneer Pet litter. Carhartt brite lime / orange hoodies are regular colours, not CSA reflective. This scan: zero hi-vis hoodies in M or L. Only Pioneer men's safety hoodie 4XL (OS 4243578) and a women's Pioneer fleece 3XL.",
       "All-tabs Sun 27 Sep 2026 ~5pm Barrie: today's OS 1125 apparel already ended (only Ziploc left). Work clothes moved to Monday OS 1129 plus new HV Carhartt (Detroit 4XL stained, insulated bibs XL short, sherpa field jacket Small, Arctic vest 2XL, sherpa vest L). Pallet 1127 and Halloween 1128 have zero workwear. Zero stand-up freezers on any tab — only fridge/freezer combos and minis. When they say all tabs, also search 1127/1128/1129.",
       "Construction pants/hoodies Sun 11 Oct 2026 (HV 1384 / OS 1383 / Mon OS 1387): Sunday OS adult workwear is empty (kids hoodies only). Real pants are HV Blaklader 32x32 and FR 34x32 plus Monday Carhartt twill 30x34. Hoodies: HV Carhartt K121 M orange stained; Monday OS Carhartt K121 M black sealed (already warm). find=hoodie is Champion/kids. find=blaklader is the work-pant word this week.",
-      "UPS (battery backup) Sun 11 Oct 2026: search apc / rbc / uninterruptible / battery backup, not ups alone. find=ups is pull-ups, Pampers Easy Ups, Samsonite Upscape, Mighty Pups. find=apc is A-Premium car parts and Realforce APC keyboards. find=cyberpower is zero this week (no UPS and no PCs). find=tripp lite is DisplayPort/USB cables. find=eaton is a bathroom timer. No plug-in APC/CyberPower/Eaton UPS this scan. Only HV 4293196 12V 2000W inverter+UPS charger (dent) and OS 4305902 APC RBC17 replacement battery."
+      "UPS (battery backup) Sun 11 Oct 2026: search apc / rbc / uninterruptible / battery backup, not ups alone. find=ups is pull-ups, Pampers Easy Ups, Samsonite Upscape, Mighty Pups. find=apc is A-Premium car parts and Realforce APC keyboards. find=cyberpower is zero this week (no UPS and no PCs). find=tripp lite is DisplayPort/USB cables. find=eaton is a bathroom timer. No plug-in APC/CyberPower/Eaton UPS this scan. Only HV 4293196 12V 2000W inverter+UPS charger (dent) and OS 4305902 APC RBC17 replacement battery.",
+      "Storage boxes Sun 11 Oct 2026 (HV 1384 / OS 1383): search tote / sterilite / iris / rubbermaid / bankers / deck box / underbed, not box alone. find=box is handbags, lunch bags, litter, filament dryers, trash cans. find=tote is North Face/Longchamp/Ralph Lauren handbags and JUYGO puffy totes. find=iris is playpens, litter boxes, Irish Spring soap, Irish Setter boots. find=rubbermaid is wastebaskets, Brilliance/TakeAlongs food tubs, and closet kits. Monday OS 1387 / pallet / Halloween: zero extra plastic totes. Real keepers: HV Roughneck 3gal 6pk 4303200, 5pk 53qt TB-56D 4306399, OS Sterilite 18qt 6pk 4308617, Weathershield 44qt 4pk 4293483, 66qt underbed 4303782. Skip cracked IRIS 33L/53qt packs and WeatherPro 156qt missing clamps. Vevor 230gal 4294556 is PE tarpaulin + poles, not a hard resin deck box."
     ]
   },
   "categories": {
@@ -163,6 +164,22 @@
     {
       "query": "apc",
       "skip_title_re": "a-premium|apcon|apcva|realforce|bracer"
+    },
+    {
+      "query": "box",
+      "skip_title_re": "handbag|purse|lunch|litter|filament|trash|garbage|wastebasket|jewellery|jewelry|makeup|diaper|music box|gift box|toolbox|tool box"
+    },
+    {
+      "query": "tote",
+      "skip_title_re": "handbag|purse|shoulder bag|tote bag|longchamp|old navy|juygo|footbath|armorall"
+    },
+    {
+      "query": "iris",
+      "skip_title_re": "playpen|litter|irish spring|irish setter|pet food|dog pen|pet enclosure|thinkpad"
+    },
+    {
+      "query": "rubbermaid",
+      "skip_title_re": "wastebasket|trash|garbage|brute|brilliance|takealongs|food storage|closet kit|hygen"
     },
     {
       "query": "stream deck",
