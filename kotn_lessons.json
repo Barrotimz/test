@@ -45,7 +45,8 @@
       "Construction / workwear Fri 25 Sep 2026 (HV 1126 / OS 1125): search carhartt / pioneer / dickies then crawl apparel cat 1. find=wrangler is Jeep shocks, luggage, and western shirts. find=construction is LEGO, toy machines, sleds. find=walls is tent sidewalls. find=detroit is brake calipers. find=wolverine is comics. find=mechanic is rolling stools and tool sets. find=bib is baby. OS this week has Carhartt pants/hoodies and Pioneer hi-vis, zero Dickies, zero coveralls, zero men's Carhartt jackets. HV has a sealed duck sherpa vest and a women's sherpa jacket.",
       "Hi-vis hoodies Fri 25 Sep 2026: search hi vis / high visibility / pioneer hoodie then hoodie and filter. find=hoodie is Champion tunics, Hurley, Raptors, and hooded litter boxes. find=pioneer is DJ controllers and Pioneer Pet litter. Carhartt brite lime / orange hoodies are regular colours, not CSA reflective. This scan: zero hi-vis hoodies in M or L. Only Pioneer men's safety hoodie 4XL (OS 4243578) and a women's Pioneer fleece 3XL.",
       "All-tabs Sun 27 Sep 2026 ~5pm Barrie: today's OS 1125 apparel already ended (only Ziploc left). Work clothes moved to Monday OS 1129 plus new HV Carhartt (Detroit 4XL stained, insulated bibs XL short, sherpa field jacket Small, Arctic vest 2XL, sherpa vest L). Pallet 1127 and Halloween 1128 have zero workwear. Zero stand-up freezers on any tab — only fridge/freezer combos and minis. When they say all tabs, also search 1127/1128/1129.",
-      "Construction pants/hoodies Sun 11 Oct 2026 (HV 1384 / OS 1383 / Mon OS 1387): Sunday OS adult workwear is empty (kids hoodies only). Real pants are HV Blaklader 32x32 and FR 34x32 plus Monday Carhartt twill 30x34. Hoodies: HV Carhartt K121 M orange stained; Monday OS Carhartt K121 M black sealed (already warm). find=hoodie is Champion/kids. find=blaklader is the work-pant word this week."
+      "Construction pants/hoodies Sun 11 Oct 2026 (HV 1384 / OS 1383 / Mon OS 1387): Sunday OS adult workwear is empty (kids hoodies only). Real pants are HV Blaklader 32x32 and FR 34x32 plus Monday Carhartt twill 30x34. Hoodies: HV Carhartt K121 M orange stained; Monday OS Carhartt K121 M black sealed (already warm). find=hoodie is Champion/kids. find=blaklader is the work-pant word this week.",
+      "UPS (battery backup) Sun 11 Oct 2026: search apc / rbc / uninterruptible / battery backup, not ups alone. find=ups is pull-ups, Pampers Easy Ups, Samsonite Upscape, Mighty Pups. find=apc is A-Premium car parts and Realforce APC keyboards. find=cyberpower is zero this week (no UPS and no PCs). find=tripp lite is DisplayPort/USB cables. find=eaton is a bathroom timer. No plug-in APC/CyberPower/Eaton UPS this scan. Only HV 4293196 12V 2000W inverter+UPS charger (dent) and OS 4305902 APC RBC17 replacement battery."
     ]
   },
   "categories": {
@@ -154,6 +155,14 @@
     {
       "query": "pioneer",
       "skip_title_re": "dj |ddj|cd reciever|cd receiver|pet products|cat litter"
+    },
+    {
+      "query": "ups",
+      "skip_title_re": "pull-?ups|easy ups|training|pampers|huggies|upscape|mighty pups|picture frame|push-up|cups"
+    },
+    {
+      "query": "apc",
+      "skip_title_re": "a-premium|apcon|apcva|realforce|bracer"
     },
     {
       "query": "stream deck",
