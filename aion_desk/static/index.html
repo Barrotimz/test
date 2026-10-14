@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#100e0b" />
+    <title>Ledger · Aion 2 craft entries</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect fill='%23100e0b' width='32' height='32'/%3E%3Cpath fill='%23e4c27a' d='M16 4l8 8-8 16L8 12z'/%3E%3C/svg%3E" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,480;0,6..72,560;1,6..72,460&family=Outfit:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/app.css" />
+  </head>
+  <body>
+    <header class="top">
+      <div class="brand">
+        <p class="mark">Ledger</p>
+        <h1>Craft entries that still pay</h1>
+      </div>
+      <div class="server-box">
+        <label for="server">Server</label>
+        <select id="server"></select>
+        <p id="snapshot" class="faint">Loading the market…</p>
+      </div>
+    </header>
+
+    <section class="controls" aria-label="Scoring settings">
+      <div class="presets" role="group" aria-label="Fee preset">
+        <button type="button" class="preset" data-sale="0.20" data-list="0.02">World · 22%</button>
+        <button type="button" class="preset" data-sale="0.10" data-list="0.02">Server · 12%</button>
+        <button type="button" class="preset" data-sale="0" data-list="0">Ask only</button>
+      </div>
+      <label>Sale fee <input id="sale" type="number" min="0" max="80" step="0.5" value="20" /> %</label>
+      <label>List fee <input id="list" type="number" min="0" max="20" step="0.5" value="2" /> %</label>
+      <label>Min listings <input id="min-listings" type="number" min="0" max="50" step="1" value="3" /></label>
+      <label>Min sales <input id="min-sold" type="number" min="0" max="1000" step="1" value="2" /></label>
+      <label class="grow">Search <input id="search" type="search" placeholder="Gloves, staff, ring…" /></label>
+      <label>Bankroll <input id="bankroll" type="number" min="0" step="10000" placeholder="Any" /></label>
+      <button type="button" id="refresh" class="ghost">Refresh</button>
+    </section>
+
+    <div id="skills" class="chips" role="group" aria-label="Profession"></div>
+    <p id="status" class="status" role="status"></p>
+    <p id="error" class="error" role="alert" hidden></p>
+
+    <section class="stats" id="stats" hidden></section>
+    <section id="entries" hidden>
+      <div class="section-head">
+        <h2>Entries</h2>
+        <p>Stop the recipe here. The number is expected kina after the fees you set, over many crafts.</p>
+      </div>
+      <div id="entry-list" class="entry-list"></div>
+    </section>
+    <section id="recipes" hidden>
+      <div class="section-head">
+        <h2>Every recipe</h2>
+        <p>Three places to stop. The ask margin is what the listing shows. The net is what is left after fees.</p>
+      </div>
+      <div id="family-list"></div>
+    </section>
+
+    <footer class="notes">
+      <p>Costs assume crafting mastery 100. A combo upgrades the piece on about a quarter of successes, and a miss consumes the materials, so one session swings around the average.</p>
+      <p>The world preset uses a 20% sale fee and a 2% listing fee, the rates community calculators use for the world exchange. The server preset uses 10% and 2%. Set both to match the exchange you actually list on.</p>
+      <p>The exit is the lower of the cheapest ask and the 28-day average sale. Listings and sales come from <a href="https://aion2.exchange/">Aion2Market</a>, which snapshots the exchange about once an hour. Nothing here is a guarantee a buyer takes the item.</p>
+    </footer>
+
+    <div id="drawer" class="drawer" hidden>
+      <div class="scrim" data-close="1"></div>
+      <aside role="dialog" aria-modal="true" aria-labelledby="drawer-title">
+        <button type="button" class="close" data-close="1" aria-label="Close">Close</button>
+        <div id="drawer-body"></div>
+      </aside>
+    </div>
+    <script src="/app.js"></script>
+  </body>
+</html>
