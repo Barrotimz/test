@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Internet Switch
+Comment=Shut this PC's internet off, or turn it back on
+Exec=sh -c 'cd "$(dirname "$1")" && exec python3 internet_switch.py' sh %k
+Terminal=false
+Categories=Utility;Network;
+StartupNotify=false
