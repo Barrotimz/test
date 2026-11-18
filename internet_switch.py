@@ -10,7 +10,7 @@ Only this computer is changed.
 Run the window:
     python3 internet_switch.py
 
-Windows can also double-click "Internet Switch.bat".
+On Windows, double-click "Internet Switch.bat" on your PC. That file does not need Python.
 Linux and macOS can double-click "internet-switch.sh".
 
 Commands:
@@ -93,7 +93,7 @@ Usage:
   python3 internet_switch.py off      turn internet on
   python3 internet_switch.py status   print on or off
 
-Windows: double-click "Internet Switch.bat".
+Windows: double-click "Internet Switch.bat" on your PC. It does not need Python.
 Linux and macOS: double-click "internet-switch.sh".
 Administrator permission is requested when the system requires it.
 """

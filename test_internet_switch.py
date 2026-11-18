@@ -536,6 +536,46 @@ class CommandTests(unittest.TestCase):
         self.assertTrue(backend.internet_on())
 
 
+class WindowsBatTests(unittest.TestCase):
+    def test_bat_embeds_the_local_path_and_balances(self):
+        text = Path(__file__).with_name("Internet Switch.bat").read_text(encoding="ascii")
+        text = text.replace("\r\n", "\n")
+        self.assertEqual(sum(1 for line in text.splitlines() if line == "###POWERSHELL###"), 1)
+        command = text.split(' -Command "', 1)[1]
+        command = command[: command.find('"\nif errorlevel')]
+        expr = command[command.index("$code=") :]
+        index = len("$code=") + 1
+
+        def read_single(source, pos):
+            chars = []
+            while True:
+                if source[pos : pos + 2] == "''":
+                    chars.append("'")
+                    pos += 2
+                elif source[pos] == "'":
+                    return "".join(chars), pos + 1
+                else:
+                    chars.append(source[pos])
+                    pos += 1
+
+        left, index = read_single(expr, index)
+        self.assertTrue(expr.startswith("+$q+", index))
+        index += 4
+        self.assertEqual(expr[index], "'")
+        right, _index = read_single(expr, index + 1)
+        path = r"C:\Users\Me\Desktop\Internet Switch.bat"
+        code = left + path + right
+        self.assertIn(f"Get-Content -LiteralPath '{path}'", code)
+        self.assertIn("###POWERSHELL###", code)
+        self.assertEqual(code.count("{"), code.count("}"))
+        self.assertEqual(code.count("("), code.count(")"))
+        body = text.split("###POWERSHELL###\n", 1)[1]
+        self.assertIn("Disable-NetAdapter", body)
+        self.assertIn("Enable-NetAdapter", body)
+        self.assertEqual(body.count("{"), body.count("}"))
+        self.assertEqual(body.count("("), body.count(")"))
+
+
 class WindowTests(unittest.TestCase):
     def test_buttons_switch_the_label(self):
         try:
